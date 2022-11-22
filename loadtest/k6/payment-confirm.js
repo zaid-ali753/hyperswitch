@@ -9,14 +9,8 @@ export const requests = new Counter("http_reqs");
 const baseline = readBaseline("payment-confirm");
 
 export const options = {
-    stages: [
-        { duration: "10s", target: 25 },        // ramp up users to 25 in 10 seconds
-        { duration: "10s", target: 25 },        // maintain 25 users for 10 seconds
-        { duration: "10s", target: 0 }          // ramp down to 0 users in 10 seconds
-    ],
-    thresholds: {
-        'http_req_duration': ['p(90) < 500'],   // 90% of requests must finish within 500ms.
-    },
+    vus: 100,
+    duration: '30s',
 };
 
 export function setup() {

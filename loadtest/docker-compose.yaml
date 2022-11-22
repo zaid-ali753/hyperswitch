@@ -35,6 +35,7 @@ services:
       dockerfile: ./loadtest/Dockerfile
     volumes:
       - ./config:/config
+      - ./logs.tmp:/app/logs
     command:
       - /bin/bash
       - -c

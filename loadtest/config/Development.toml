@@ -1,11 +1,11 @@
 [log.file]
-enabled = false
+enabled = true
 
 [log.console]
 enabled = false
 
 [log.telemetry]
-enabled = true
+enabled = false
 
 [database]
 username = "postgres"
