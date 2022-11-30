@@ -7,6 +7,7 @@ use crate::{
     pii::{self, Secret},
     services,
     types::{self, api, storage::enums},
+    utils::FromExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -46,6 +47,7 @@ pub struct PaymentsRequest {
     pub three_ds: CheckoutThreeDS,
     #[serde(flatten)]
     pub return_url: ReturnUrl,
+    pub capture: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +69,7 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
         }
     }
 }
+
 impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ValidateError>;
     fn try_from(item: &types::PaymentsRouterData) -> Result<Self, Self::Error> {
@@ -77,7 +80,10 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
             api::PaymentMethod::PayLater(_) => None,
             api::PaymentMethod::Paypal => None,
         };
-
+        let capture = matches!(
+            item.request.capture_method,
+            Some(enums::CaptureMethod::Automatic)
+        );
         let three_ds = match item.auth_type {
             enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
                 enabled: true,
@@ -116,9 +122,65 @@ impl TryFrom<&types::PaymentsRouterData> for PaymentsRequest {
             processing_channel_id,
             three_ds,
             return_url,
+            capture,
         })
     }
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum CaptureType {
+    Final,
+    NonFinal,
+}
+#[derive(Debug, Serialize)]
+pub struct CaptureRequest {
+    pub amount: Option<i32>,
+    pub capture_type: Option<CaptureType>,
+    pub processing_channel_id: String,
+}
+impl TryFrom<&types::PaymentsRouterCaptureData> for CaptureRequest {
+    type Error = error_stack::Report<errors::ValidateError>;
+    fn try_from(item: &types::PaymentsRouterCaptureData) -> Result<Self, Self::Error> {
+        let connector_auth = &item.connector_auth_type;
+        let auth_type: CheckoutAuthType = connector_auth.try_into()?;
+        let processing_channel_id = auth_type.processing_channel_id;
+        Ok(Self {
+            amount: item.request.amount_to_capture,
+            capture_type: Some(CaptureType::Final),
+            processing_channel_id,
+        })
+    }
+}
+#[derive(Debug, Deserialize)]
+pub struct CaptureResponse {
+    pub action_id: String,
+}
+// impl TryFrom<types::PaymentsRouterCaptureData>
+//     for types::PaymentsRouterCaptureData
+// {
+//     type Error = error_stack::Report<errors::ValidateError>;
+//     fn try_from(
+//         item: types::PaymentsRouterCaptureData,
+//     ) -> Result<Self, Self::Error> {
+//         let status = if item.http_code == 202 {
+//             enums::AttemptStatus::Charged
+//         } else {
+//             enums::AttemptStatus::Pending
+//         };
+//         Ok(types::RouterData {
+//             status,
+//             // TODO: This response doesn't give any useful info, it maybe the response type of capture need to be change, also do we have to store action_id ?
+//             response: Some(types::PaymentsResponseData {
+//                 connector_transaction_id: item.data.request.connector_transaction_id.to_owned(),
+//                 //TODO: Add redirection details here
+//                 redirection_data: None,
+//                 redirect: false,
+//             }),
+//             ..item.data
+//         })
+//     }
+// }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
 pub enum CheckoutPaymentStatus {
@@ -131,12 +193,18 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<CheckoutPaymentStatus> for enums::AttemptStatus {
-    fn from(item: CheckoutPaymentStatus) -> Self {
+impl FromExt<CheckoutPaymentStatus, Option<enums::CaptureMethod>> for enums::AttemptStatus {
+    fn from_ext(item: CheckoutPaymentStatus, capture_method: Option<enums::CaptureMethod>) -> Self {
         match item {
-            CheckoutPaymentStatus::Authorized | CheckoutPaymentStatus::Captured => {
-                enums::AttemptStatus::Charged
+            CheckoutPaymentStatus::Authorized => {
+                if capture_method == Some(enums::CaptureMethod::Automatic) || capture_method == None
+                {
+                    enums::AttemptStatus::Charged
+                } else {
+                    enums::AttemptStatus::Authorized
+                }
             }
+            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
             CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
             CheckoutPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
             CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
@@ -188,7 +256,7 @@ impl<F, Req>
             ),
         });
         Ok(types::RouterData {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from_ext(item.response.status, item.data.request.capture_method),
             response: Some(types::PaymentsResponseData {
                 connector_transaction_id: item.response.id,
                 redirect: redirection_data.is_some(),
