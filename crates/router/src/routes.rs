@@ -1,6 +1,7 @@
 mod admin;
 mod app;
 mod customers;
+mod gdpr;
 mod health;
 mod mandates;
 mod metrics;
@@ -12,7 +13,7 @@ mod webhooks;
 
 pub use self::app::{
     AppState, Customers, Health, Mandates, MerchantAccount, MerchantConnectorAccount,
-    PaymentMethods, Payments, Payouts, Refunds, Webhooks,
+    PaymentMethods, Payments, Payouts, Refunds, Webhooks, GDPR,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

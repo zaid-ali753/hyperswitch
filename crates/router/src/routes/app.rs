@@ -1,8 +1,8 @@
 use actix_web::{web, Scope};
 
 use super::{
-    admin::*, customers::*, health::*, mandates::*, payment_methods::*, payments::*, payouts::*,
-    refunds::*, webhooks::*,
+    admin::*, customers::*, gdpr::*, health::*, mandates::*, payment_methods::*, payments::*,
+    payouts::*, refunds::*, webhooks::*,
 };
 use crate::{configs::settings::Settings, services::Store};
 
@@ -182,6 +182,19 @@ impl Webhooks {
             .service(
                 web::resource("/{merchant_id}/{connector}")
                     .route(web::post().to(receive_incoming_webhook)),
+            )
+    }
+}
+
+pub struct GDPR;
+
+impl GDPR {
+    pub fn server(config: AppState) -> Scope {
+        web::scope("/gdpr")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{customer_id}/{merchant_id}")
+                    .route(web::post().to(delete_customer_data_api)),
             )
     }
 }

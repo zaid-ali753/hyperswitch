@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod customers;
+pub mod gdpr;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
@@ -13,6 +14,7 @@ use error_stack::{report, IntoReport, ResultExt};
 pub use self::{
     admin::*,
     customers::{CreateCustomerRequest, CustomerResponse, CustomerUpdateRequest},
+    gdpr::*,
     payment_methods::*,
     payments::*,
     refunds::*,

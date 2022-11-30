@@ -134,6 +134,8 @@ pub enum Flow {
     RefundsList,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// GDPR data delete flow.
+    GdprDataDelete,
 }
 
 /// Category of log event.
