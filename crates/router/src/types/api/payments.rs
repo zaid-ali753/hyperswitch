@@ -640,6 +640,10 @@ pub struct PaymentsSessionRequest {
     pub client_secret: String,
 }
 
+pub struct PaymentsSessionResponse {
+    pub client_tokens: Vec<String>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentRetrieveBody {
     pub merchant_id: Option<String>,

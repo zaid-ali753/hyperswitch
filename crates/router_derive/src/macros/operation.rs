@@ -16,6 +16,7 @@ enum Derives {
     Capturedata,
     Start,
     Session,
+    SessionData,
 }
 
 impl From<String> for Derives {
@@ -31,6 +32,7 @@ impl From<String> for Derives {
             "capturedata" => Self::Capturedata,
             "start" => Self::Start,
             "session" => Self::Session,
+            "sessiondata" => Self::SessionData,
             _ => Self::Authorize,
         }
     }
@@ -43,8 +45,9 @@ impl Derives {
         struct_name: &syn::Ident,
     ) -> TokenStream {
         let req_type = Conversion::get_req_type(self);
+        let res_type = Conversion::get_res_type(self);
         quote! {
-            impl<F:Send+Clone> Operation<F,#req_type> for #struct_name {
+            impl<F:Send+Clone> Operation<F,#req_type, #res_type> for #struct_name {
                 #(#fns)*
             }
         }
@@ -56,8 +59,9 @@ impl Derives {
         struct_name: &syn::Ident,
     ) -> TokenStream {
         let req_type = Conversion::get_req_type(self);
+        let res_type = Conversion::get_res_type(self);
         quote! {
-            impl<F:Send+Clone> Operation<F,#req_type> for &#struct_name {
+            impl<F:Send+Clone> Operation<F,#req_type, #res_type> for &#struct_name {
                 #(#ref_fns)*
             }
         }
@@ -101,34 +105,48 @@ impl Conversion {
             Derives::Capturedata => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
+            Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
+        }
+    }
+
+    fn get_res_type(ident: Derives) -> syn::Ident {
+        match ident {
+            Derives::Session => syn::Ident::new("PaymentsSessionResponse", Span::call_site()),
+            Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
+            Derives::Syncdata
+            | Derives::Authorizedata
+            | Derives::Canceldata
+            | Derives::Capturedata => syn::Ident::new("PaymentsResponseData", Span::call_site()),
+            _ => syn::Ident::new("PaymentsResponse", Span::call_site()),
         }
     }
 
     fn to_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
+        let res_type = Self::get_res_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
-                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
+                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type, #res_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Conversion::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type, #res_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Conversion::Domain => quote! {
-                fn to_domain(&self) -> RouterResult<&dyn Domain<F,#req_type>> {
+                fn to_domain(&self) -> RouterResult<&dyn Domain<F,#req_type,#res_type>> {
                     Ok(self)
                 }
             },
             Conversion::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type, #res_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Conversion::PostUpdateTracker => quote! {
-                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
+                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type, #res_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
@@ -150,29 +168,30 @@ impl Conversion {
 
     fn to_ref_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
+        let res_type = Self::get_res_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
-                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
+                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type, #res_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Conversion::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type, #res_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Conversion::Domain => quote! {
-                fn to_domain(&self) -> RouterResult<&(dyn Domain<F,#req_type>)> {
+                fn to_domain(&self) -> RouterResult<&(dyn Domain<F,#req_type, #res_type>)> {
                     Ok(*self)
                 }
             },
             Conversion::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type ,#res_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Conversion::PostUpdateTracker => quote! {
-                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
+                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type, #res_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
@@ -281,6 +300,7 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                     PaymentsCaptureData,
                     PaymentsCancelData,
                     PaymentsAuthorizeData,
+                    PaymentsResponseData,
 
                     api::{
                         PaymentsCaptureRequest,
@@ -288,7 +308,9 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                         PaymentsRetrieveRequest,
                         PaymentsRequest,
                         PaymentsStartRequest,
-                        PaymentsSessionRequest
+                        PaymentsSessionRequest,
+                        PaymentsSessionResponse,
+                        PaymentsResponse,
                     }
                 };
                 #trait_derive

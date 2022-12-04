@@ -364,10 +364,10 @@ pub fn payment_intent_status_fsm(
     }
 }
 
-pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R>
+pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R, api::PaymentsResponse>
 where
     F: Send + Clone,
-    PaymentResponse: Operation<F, R>,
+    PaymentResponse: Operation<F, R, api::PaymentsResponse>,
 {
     Box::new(PaymentResponse)
 }
@@ -516,13 +516,16 @@ pub async fn get_customer_from_details(
 }
 
 #[instrument(skip_all)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, Res>(
+    operation: BoxedOperation<'a, F, R, Res>,
     db: &dyn StorageInterface,
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<api::CustomerResponse>), errors::StorageError> {
+) -> CustomResult<
+    (BoxedOperation<'a, F, R, Res>, Option<api::CustomerResponse>),
+    errors::StorageError,
+> {
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -572,14 +575,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn make_pm_data<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+    operation: BoxedOperation<'a, F, R, api::PaymentsResponse>,
     state: &'a AppState,
     payment_method: Option<enums::PaymentMethodType>,
     txn_id: &str,
     _payment_attempt: &storage::PaymentAttempt,
     request: &Option<api::PaymentMethod>,
     token: &Option<String>,
-) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
+) -> RouterResult<(
+    BoxedOperation<'a, F, R, api::PaymentsResponse>,
+    Option<api::PaymentMethod>,
+)> {
     let payment_method = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method == Some(enums::PaymentMethodType::Card) {

@@ -25,7 +25,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 }
 
 #[async_trait]
-pub trait Feature<F, T> {
+pub trait Feature<F, T, Res> {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
@@ -37,5 +37,5 @@ pub trait Feature<F, T> {
     where
         Self: std::marker::Sized,
         F: Clone,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+        dyn api::Connector: services::ConnectorIntegration<F, T, Res>;
 }

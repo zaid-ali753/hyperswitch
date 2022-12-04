@@ -25,9 +25,10 @@ impl
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
-        let output = transformers::construct_payment_session_router_data::<
+        let output = transformers::construct_payment_router_data::<
             api::Session,
             types::PaymentsSessionData,
+            types::PaymentsSessionResponseData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
         Ok(output.1)
@@ -35,7 +36,9 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
+impl Feature<api::Session, types::PaymentsSessionData, types::PaymentsSessionResponseData>
+    for types::PaymentsSessionRouterData
+{
     async fn decide_flows<'a>(
         self,
         state: &AppState,

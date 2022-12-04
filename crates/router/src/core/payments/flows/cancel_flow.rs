@@ -24,6 +24,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         let output = transformers::construct_payment_router_data::<
             api::Void,
             types::PaymentsCancelData,
+            types::PaymentsResponseData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
         Ok(output.1)
@@ -31,7 +32,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
 }
 
 #[async_trait]
-impl Feature<api::Void, types::PaymentsCancelData>
+impl Feature<api::Void, types::PaymentsCancelData, PaymentsResponseData>
     for types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(

@@ -25,7 +25,8 @@ use crate::{
 pub struct PaymentResponse;
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
+impl<F: Clone>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -49,7 +50,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
+impl<F: Clone>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData, types::PaymentsResponseData>
+    for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -67,7 +71,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
+impl<F: Clone>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData, types::PaymentsResponseData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -87,7 +92,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
+impl<F: Clone>
+    PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData, types::PaymentsResponseData>
+    for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,

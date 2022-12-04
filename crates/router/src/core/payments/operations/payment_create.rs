@@ -30,7 +30,9 @@ use crate::{
 pub struct PaymentCreate;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, api::PaymentsResponse>
+    for PaymentCreate
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -41,7 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, F, api::PaymentsRequest, api::PaymentsResponse>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -187,7 +189,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, api::PaymentsResponse>
+    for PaymentCreate
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -195,7 +199,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, api::PaymentsRequest, api::PaymentsResponse>,
+        PaymentData<F>,
+    )>
     where
         F: 'b + Send,
     {
@@ -240,14 +247,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, api::PaymentsResponse>
+    for PaymentCreate
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest>,
+        BoxedOperation<'b, F, api::PaymentsRequest, api::PaymentsResponse>,
         &'a str,
         api::PaymentIdType,
         Option<api::MandateTxnType>,

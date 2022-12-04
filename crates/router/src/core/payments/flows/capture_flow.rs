@@ -27,6 +27,7 @@ impl
         let output = transformers::construct_payment_router_data::<
             api::Capture,
             types::PaymentsCaptureData,
+            types::PaymentsResponseData,
         >(state, self.clone(), connector_id, merchant_account)
         .await?;
         Ok(output.1)
@@ -34,7 +35,7 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Capture, types::PaymentsCaptureData>
+impl Feature<api::Capture, types::PaymentsCaptureData, PaymentsResponseData>
     for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(

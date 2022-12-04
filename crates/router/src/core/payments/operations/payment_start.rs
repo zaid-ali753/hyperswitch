@@ -26,7 +26,10 @@ use crate::{
 pub struct PaymentStart;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Send + Clone>
+    GetTracker<F, PaymentData<F>, api::PaymentsStartRequest, api::PaymentsResponse>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -37,7 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsStartRequest>,
+        BoxedOperation<'a, F, api::PaymentsStartRequest, api::PaymentsResponse>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -137,7 +140,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest, api::PaymentsResponse>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -146,7 +151,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         payment_data: PaymentData<F>,
         _customer: Option<Customer>,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest>,
+        BoxedOperation<'b, F, api::PaymentsStartRequest, api::PaymentsResponse>,
         PaymentData<F>,
     )>
     where
@@ -156,14 +161,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest, api::PaymentsResponse>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest>,
+        BoxedOperation<'b, F, api::PaymentsStartRequest, api::PaymentsResponse>,
         &'a str,
         api::PaymentIdType,
         Option<api::MandateTxnType>,
@@ -187,10 +194,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsStartRequest>>
-    Domain<F, api::PaymentsStartRequest> for Op
+impl<
+        F: Clone + Send,
+        Op: Send + Sync + Operation<F, api::PaymentsStartRequest, api::PaymentsResponse>,
+    > Domain<F, api::PaymentsStartRequest, api::PaymentsResponse> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsStartRequest>,
+    for<'a> &'a Op: Operation<F, api::PaymentsStartRequest, api::PaymentsResponse>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -201,7 +210,7 @@ where
         merchant_id: &str,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsStartRequest>,
+            BoxedOperation<'a, F, api::PaymentsStartRequest, api::PaymentsResponse>,
             Option<api::CustomerResponse>,
         ),
         errors::StorageError,
@@ -226,7 +235,7 @@ where
         request: &Option<api::PaymentMethod>,
         token: &Option<String>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsStartRequest>,
+        BoxedOperation<'a, F, api::PaymentsStartRequest, api::PaymentsResponse>,
         Option<api::PaymentMethod>,
     )> {
         helpers::make_pm_data(

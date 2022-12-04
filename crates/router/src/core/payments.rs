@@ -17,6 +17,7 @@ use self::{
     flows::{ConstructFlowSpecificData, Feature},
     helpers::{filter_by_constraints, validate_payment_list_request},
     operations::{BoxedOperation, Operation},
+    payments_transformers::ToResponse,
 };
 use super::errors::StorageErrorExt;
 use crate::{
@@ -32,14 +33,18 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentsResponse, PaymentsRetrieveRequest},
+        api::{
+            self, PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionRequest,
+            PaymentsSessionResponse,
+        },
         storage::{self, enums},
+        PaymentsResponseData, PaymentsSessionData, PaymentsSessionResponseData,
     },
     utils::{self, OptionExt},
 };
 
 #[instrument(skip_all)]
-pub async fn payments_operation_core<F, Req, Op, FData>(
+pub async fn payments_operation_core<F, Req, Op, FData, Res>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
@@ -48,23 +53,28 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
 ) -> RouterResult<(PaymentData<F>, Req, Option<api::CustomerResponse>)>
 where
     F: Send + Clone,
-    Op: Operation<F, Req> + Send + Sync,
+    Op: Operation<F, Req, Res> + Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
+    PaymentData<api::Session>:
+        ConstructFlowSpecificData<api::Session, FData, types::PaymentsSessionResponseData>,
+    types::RouterData<api::Session, FData, types::PaymentsSessionResponseData>:
+        Feature<F, FData, types::PaymentsSessionResponseData>,
+    types::RouterData<F, FData, types::PaymentsResponseData>:
+        Feature<F, FData, PaymentsResponseData>,
 
     // To construct connector flow specific api
-    dyn types::api::Connector:
-        services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
+    dyn types::api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>
+        + services::api::ConnectorIntegration<F, FData, types::PaymentsSessionResponseData>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData>,
+    PaymentResponse: Operation<F, FData, Res>,
 {
     let connector = api::ConnectorData::construct(&state.conf.connectors, &merchant_account)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let operation: BoxedOperation<F, Req> = Box::new(operation);
+    let operation: BoxedOperation<F, Req, Res> = Box::new(operation);
 
     let (operation, merchant_id, payment_id, mandate_type) = operation
         .to_validate_request()?
@@ -119,7 +129,8 @@ where
         .await?;
 
     if should_call_connector(&operation, &payment_data) {
-        payment_data = call_connector_service(
+        //TODO: branch here for different types of response
+        payment_data = call_connector_service::<F, _, _, Res, PaymentsResponseData>(
             state,
             &merchant_account,
             &payment_id,
@@ -136,32 +147,38 @@ where
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn payments_core<F, Req, Op, FData>(
+pub async fn payments_core<F, Req, Op, FData, OpRes>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
-) -> RouterResponse<api::PaymentsResponse>
+) -> RouterResponse<OpRes>
 where
     F: Send + Clone,
-    Op: Operation<F, Req> + Send + Sync + Clone,
+    Op: Operation<F, Req, OpRes> + Send + Sync + Clone,
     Req: Debug,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
-    types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
+    PaymentData<api::Session>:
+        ConstructFlowSpecificData<api::Session, FData, PaymentsSessionResponseData>,
+
+    types::RouterData<F, FData, PaymentsResponseData>: Feature<F, FData, PaymentsResponseData>,
+    types::RouterData<api::Session, FData, PaymentsSessionResponseData>:
+        Feature<F, FData, PaymentsSessionResponseData>,
 
     // To construct connector flow specific api
+    dyn types::api::Connector: services::api::ConnectorIntegration<F, FData, PaymentsResponseData>,
     dyn types::api::Connector:
-        services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
-
+        services::api::ConnectorIntegration<F, FData, PaymentsSessionResponseData>,
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData>,
+    PaymentResponse: Operation<F, FData, OpRes>,
 
     // To create merchant response
     api::PaymentsResponse: From<Req>,
+    OpRes: ToResponse<Req, PaymentData<F>, Op> + From<Req>,
 {
     let (payment_data, req, customer) = payments_operation_core(
         state,
@@ -172,20 +189,29 @@ where
     )
     .await?;
 
-    payments_transformers::payments_to_payments_response(
+    OpRes::generate_response(
         Some(req),
-        payment_data.payment_attempt,
-        payment_data.payment_intent,
-        payment_data.refunds,
-        payment_data.mandate_id,
-        payment_data.payment_method_data,
+        payment_data,
         customer,
         auth_flow,
-        payment_data.address,
         &state.conf.server,
-        payment_data.connector_response.authentication_data,
         operation,
     )
+
+    // payments_transformers::payments_to_payments_response(
+    //     Some(req),
+    //     payment_data.payment_attempt,
+    //     payment_data.payment_intent,
+    //     payment_data.refunds,
+    //     payment_data.mandate_id,
+    //     payment_data.payment_method_data,
+    //     customer,
+    //     auth_flow,
+    //     payment_data.address,
+    //     &state.conf.server,
+    //     payment_data.connector_response.authentication_data,
+    //     operation,
+    // )
 }
 
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
@@ -253,7 +279,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
     req: PaymentsRetrieveRequest,
     flow_type: CallConnectorAction,
 ) -> RouterResponse<PaymentsResponse> {
-    payments_core::<api::PSync, _, _, _>(
+    payments_core::<api::PSync, _, _, _, PaymentsResponse>(
         state,
         merchant_account,
         payments::PaymentStatus,
@@ -266,7 +292,7 @@ pub async fn payments_response_for_redirection_flows<'a>(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn call_connector_service<F, Op, Req>(
+async fn call_connector_service<F, Op, Req, OpRes, Res>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
     payment_id: &api::PaymentIdType,
@@ -281,14 +307,18 @@ where
     F: Send + Clone,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
-    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req>,
+    PaymentData<F>: ConstructFlowSpecificData<F, Req, Res>,
+    PaymentData<api::Session>:
+        ConstructFlowSpecificData<api::Session, Req, types::PaymentsSessionResponseData>,
+    types::RouterData<F, Req, Res>: Feature<F, Req, Res>,
+    types::RouterData<api::Session, Req, types::PaymentsSessionResponseData>:
+        Feature<F, Req, types::PaymentsSessionResponseData>,
 
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, Res>,
 
     // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req>,
+    PaymentResponse: Operation<F, Req, api::PaymentsResponse>,
 {
     let db = &*state.store;
 
@@ -370,11 +400,11 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     is_update: bool,
     status: enums::IntentStatus,
     current: &'a Op,
-) -> BoxedOperation<F, api::PaymentsRequest>
+) -> BoxedOperation<F, api::PaymentsRequest, api::PaymentsResponse>
 where
     F: Send + Clone,
-    Op: Operation<F, api::PaymentsRequest> + Send + Sync,
-    &'a Op: Operation<F, api::PaymentsRequest>,
+    Op: Operation<F, api::PaymentsRequest, api::PaymentsResponse> + Send + Sync,
+    &'a Op: Operation<F, api::PaymentsRequest, api::PaymentsResponse>,
 {
     match status {
         enums::IntentStatus::RequiresConfirmation
@@ -390,15 +420,15 @@ where
     }
 }
 
-pub fn is_confirm<'a, F: Clone + Send, R, Op>(
+pub fn is_confirm<'a, F: Clone + Send, R, Op, Res>(
     operation: &'a Op,
     confirm: Option<bool>,
-) -> BoxedOperation<F, R>
+) -> BoxedOperation<F, R, Res>
 where
-    PaymentConfirm: Operation<F, R>,
-    &'a PaymentConfirm: Operation<F, R>,
-    Op: Operation<F, R> + Send + Sync,
-    &'a Op: Operation<F, R>,
+    PaymentConfirm: Operation<F, R, Res>,
+    &'a PaymentConfirm: Operation<F, R, Res>,
+    Op: Operation<F, R, Res> + Send + Sync,
+    &'a Op: Operation<F, R, Res>,
 {
     if confirm.unwrap_or(false) {
         Box::new(&PaymentConfirm)
