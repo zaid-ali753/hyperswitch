@@ -159,6 +159,26 @@ where
     }
 }
 
+impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionResponse
+where
+    Self: From<Req>,
+    F: Clone,
+    Op: Debug,
+{
+    fn generate_response(
+        req: Option<Req>,
+        payment_data: PaymentData<F>,
+        customer: Option<api::CustomerResponse>,
+        auth_flow: services::AuthFlow,
+        server: &Server,
+        operation: Op,
+    ) -> RouterResponse<Self> {
+        Ok(services::BachResponse::Json(api::PaymentsSessionResponse {
+            client_tokens: vec![],
+        }))
+    }
+}
+
 #[instrument(skip_all)]
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found

@@ -441,6 +441,23 @@ impl From<PaymentsStartRequest> for PaymentsResponse {
     }
 }
 
+//FIXME: Just to please compiler
+impl From<PaymentsSessionRequest> for PaymentsResponse {
+    fn from(item: PaymentsSessionRequest) -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
+    fn from(item: PaymentsSessionRequest) -> Self {
+        Self {
+            client_tokens: vec![],
+        }
+    }
+}
+
 impl From<types::storage::PaymentIntent> for PaymentsResponse {
     fn from(item: types::storage::PaymentIntent) -> Self {
         Self {
@@ -640,6 +657,7 @@ pub struct PaymentsSessionRequest {
     pub client_secret: String,
 }
 
+#[derive(serde::Serialize, Debug)]
 pub struct PaymentsSessionResponse {
     pub client_tokens: Vec<String>,
 }

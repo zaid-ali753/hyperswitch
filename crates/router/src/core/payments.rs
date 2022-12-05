@@ -174,7 +174,7 @@ where
     PaymentResponse: PostUpdateOperation<F, FData, Res>,
 
     // To create merchant response
-    api::PaymentsResponse: From<Req>,
+    // api::PaymentsResponse: From<Req>,
     OpRes: ToResponse<Req, PaymentData<F>, Op> + From<Req>,
 {
     let (payment_data, req, customer) = payments_operation_core::<F, Req, _, _, Res>(

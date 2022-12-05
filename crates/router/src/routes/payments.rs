@@ -20,7 +20,7 @@ use crate::{
                 PaymentsCaptureRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
             },
             Authorize, Capture, PSync, PaymentRetrieveBody, PaymentsSessionRequest,
-            PaymentsStartRequest, Void,
+            PaymentsSessionResponse, PaymentsStartRequest, Session, Void,
         },
         storage::enums::CaptureMethod,
     }, // FIXME imports
@@ -327,6 +327,41 @@ pub async fn payments_cancel(
                 state,
                 merchant_account,
                 payments::PaymentCancel,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+            )
+        },
+        api::MerchantAuthentication::ApiKey,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
+// #[post("/{payment_id}/cancel")]
+pub async fn payments_session(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<PaymentsSessionRequest>,
+) -> impl Responder {
+    let mut payload = json_payload.into_inner();
+
+    api::server_wrap(
+        &state,
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::payments_core::<
+                Session,
+                PaymentsSessionRequest,
+                _,
+                _,
+                PaymentsSessionResponse,
+                types::PaymentsSessionResponseData,
+            >(
+                state,
+                merchant_account,
+                payments::PaymentSession,
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,

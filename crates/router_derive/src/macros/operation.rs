@@ -45,7 +45,7 @@ impl Derives {
         struct_name: &syn::Ident,
     ) -> TokenStream {
         let req_type = Conversion::get_req_type(self);
-        let res_type = Conversion::get_res_type(self);
+        // let res_type = Conversion::get_res_type(self);
 
         quote! {
             impl<F:Send+Clone> Operation<F,#req_type> for #struct_name {
@@ -60,7 +60,7 @@ impl Derives {
         struct_name: &syn::Ident,
     ) -> TokenStream {
         let req_type = Conversion::get_req_type(self);
-        let res_type = Conversion::get_res_type(self);
+        // let res_type = Conversion::get_res_type(self);
         quote! {
             impl<F:Send+Clone> Operation<F,#req_type> for &#struct_name {
                 #(#ref_fns)*
@@ -126,7 +126,7 @@ impl Conversion {
 
     fn to_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
-        let res_type = Self::get_res_type(ident);
+        // let res_type = Self::get_res_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
                 fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
@@ -171,7 +171,7 @@ impl Conversion {
 
     fn to_ref_function(&self, ident: Derives) -> TokenStream {
         let req_type = Self::get_req_type(ident);
-        let res_type = Self::get_res_type(ident);
+        // let res_type = Self::get_res_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
                 fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
