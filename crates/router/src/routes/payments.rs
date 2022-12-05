@@ -13,6 +13,7 @@ use crate::{
     core::{errors::http_not_implemented, payments},
     services::api,
     types::{
+        self,
         api::{
             payments::{
                 PaymentIdType, PaymentListConstraints, PaymentsCancelRequest,
@@ -43,7 +44,14 @@ pub async fn payments_create(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<
+                Authorize,
+                _,
+                _,
+                _,
+                PaymentsResponse,
+                types::PaymentsResponseData,
+            >(
                 state,
                 merchant_account,
                 payments::PaymentCreate,
@@ -74,7 +82,14 @@ pub async fn payments_start(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _, PaymentsResponse>(
+            payments::payments_core::<
+                Authorize,
+                _,
+                _,
+                _,
+                PaymentsResponse,
+                types::PaymentsResponseData,
+            >(
                 state,
                 merchant_account,
                 payments::operations::PaymentStart,
@@ -114,7 +129,7 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<PSync, _, _, _>(
+            payments::payments_core::<PSync, _, _, _, PaymentsResponse,types::PaymentsResponseData>(
                 state,
                 merchant_account,
                 payments::PaymentStatus,
@@ -159,7 +174,14 @@ pub async fn payments_update(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<
+                Authorize,
+                _,
+                _,
+                _,
+                PaymentsResponse,
+                types::PaymentsResponseData,
+            >(
                 state,
                 merchant_account,
                 payments::PaymentUpdate,
@@ -203,7 +225,14 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Authorize, _, _, _>(
+            payments::payments_core::<
+                Authorize,
+                _,
+                _,
+                _,
+                PaymentsResponse,
+                types::PaymentsResponseData,
+            >(
                 state,
                 merchant_account,
                 payments::PaymentConfirm,
@@ -235,7 +264,7 @@ pub(crate) async fn payments_capture(
         &req,
         capture_payload,
         |state, merchant_account, payload| {
-            payments::payments_core::<Capture, _, _, _>(
+            payments::payments_core::<Capture, _, _, _, PaymentsResponse,types::PaymentsResponseData>(
                 state,
                 merchant_account,
                 payments::PaymentCapture,
@@ -294,7 +323,7 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::payments_core::<Void, _, _, _>(
+            payments::payments_core::<Void, _, _, _, PaymentsResponse, types::PaymentsResponseData>(
                 state,
                 merchant_account,
                 payments::PaymentCancel,

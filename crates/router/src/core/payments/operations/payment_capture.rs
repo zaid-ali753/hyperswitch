@@ -21,8 +21,7 @@ use crate::{
 pub struct PaymentCapture;
 
 #[async_trait]
-impl<F: Send + Clone>
-    GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, api::PaymentsResponse>
+impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -35,7 +34,7 @@ impl<F: Send + Clone>
         request: &PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCaptureRequest, api::PaymentsResponse>,
+        BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
@@ -131,8 +130,7 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone>
-    UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, api::PaymentsResponse>
+impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -143,7 +141,7 @@ impl<F: Clone>
         payment_data: payments::PaymentData<F>,
         _customer: Option<storage::Customer>,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest, api::PaymentsResponse>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
     )>
     where
@@ -153,16 +151,14 @@ impl<F: Clone>
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest, api::PaymentsResponse>
-    for PaymentCapture
-{
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest, api::PaymentsResponse>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         &'a str,
         api::PaymentIdType,
         Option<api::MandateTxnType>,

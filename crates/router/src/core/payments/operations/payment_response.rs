@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_derive;
 
-use super::{Operation, PostUpdateTracker};
+use super::{Operation, PostUpdateOperation, PostUpdateTracker};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -17,12 +17,45 @@ use crate::{
     utils,
 };
 
-#[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(
-    ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,sessiondata"
-)]
+// #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
+// #[operation(
+//     ops = "post_tracker",
+//     flow = "syncdata,authorizedata,canceldata,capturedata,sessiondata"
+// )]
+#[derive(Debug, Clone, Copy)]
 pub struct PaymentResponse;
+
+impl<F: Clone, FData> PostUpdateOperation<F, FData, types::PaymentsResponseData>
+    for PaymentResponse
+{
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData<F>, FData, types::PaymentsResponseData>
+              + Send
+              + Sync),
+    > {
+        Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
+            format!("post connector update tracker not found for {self:?}")
+        })
+    }
+}
+
+impl<F: Clone, FData> PostUpdateOperation<F, FData, types::PaymentsSessionResponseData>
+    for PaymentResponse
+{
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, PaymentData<F>, FData, types::PaymentsSessionResponseData>
+              + Send
+              + Sync),
+    > {
+        Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
+            format!("post connector update tracker not found for {self:?}")
+        })
+    }
+}
 
 #[async_trait]
 impl<F: Clone>

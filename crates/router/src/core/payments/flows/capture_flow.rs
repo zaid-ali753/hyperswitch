@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::ConstructFlowSpecificData;
+use super::{ConstructFlowSpecificData, DecideFlow, Flow};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -12,6 +12,34 @@ use crate::{
         self, api, storage, PaymentsCaptureData, PaymentsCaptureRouterData, PaymentsResponseData,
     },
 };
+
+impl Flow<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for PaymentData<api::Capture>
+{
+    fn to_construct_r_d(
+        &self,
+    ) -> RouterResult<
+        &(dyn ConstructFlowSpecificData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >),
+    > {
+        Ok(self)
+    }
+}
+
+impl DecideFlow<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+{
+    fn to_decide_flows(
+        &self,
+    ) -> RouterResult<
+        &(dyn Feature<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>),
+    > {
+        Ok(self)
+    }
+}
 
 #[async_trait]
 impl
@@ -39,7 +67,7 @@ impl Feature<api::Capture, types::PaymentsCaptureData, PaymentsResponseData>
     for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
-        self,
+        &self,
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<api::CustomerResponse>,

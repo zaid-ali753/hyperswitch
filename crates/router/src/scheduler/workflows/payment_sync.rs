@@ -6,7 +6,7 @@ use crate::{
     routes::AppState,
     scheduler::{consumer, process_data},
     types::{
-        api,
+        self, api,
         storage::{self, enums},
     },
     utils::{OptionExt, ValueExt},
@@ -34,7 +34,13 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let (payment_data, _, _) = payment_flows::payments_operation_core::<api::PSync, _, _, _>(
+        let (payment_data, _, _) = payment_flows::payments_operation_core::<
+            api::PSync,
+            _,
+            _,
+            _,
+            types::PaymentsResponseData,
+        >(
             state,
             merchant_account.clone(),
             operations::PaymentStatus,

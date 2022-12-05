@@ -46,8 +46,9 @@ impl Derives {
     ) -> TokenStream {
         let req_type = Conversion::get_req_type(self);
         let res_type = Conversion::get_res_type(self);
+
         quote! {
-            impl<F:Send+Clone> Operation<F,#req_type, #res_type> for #struct_name {
+            impl<F:Send+Clone> Operation<F,#req_type> for #struct_name {
                 #(#fns)*
             }
         }
@@ -61,7 +62,7 @@ impl Derives {
         let req_type = Conversion::get_req_type(self);
         let res_type = Conversion::get_res_type(self);
         quote! {
-            impl<F:Send+Clone> Operation<F,#req_type, #res_type> for &#struct_name {
+            impl<F:Send+Clone> Operation<F,#req_type> for &#struct_name {
                 #(#ref_fns)*
             }
         }
@@ -128,27 +129,27 @@ impl Conversion {
         let res_type = Self::get_res_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
-                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type, #res_type> + Send + Sync)> {
+                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Conversion::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type, #res_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Conversion::Domain => quote! {
-                fn to_domain(&self) -> RouterResult<&dyn Domain<F,#req_type,#res_type>> {
+                fn to_domain(&self) -> RouterResult<&dyn Domain<F,#req_type>> {
                     Ok(self)
                 }
             },
             Conversion::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type, #res_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
             Conversion::PostUpdateTracker => quote! {
-                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type, #res_type> + Send + Sync)> {
+                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
@@ -173,27 +174,27 @@ impl Conversion {
         let res_type = Self::get_res_type(ident);
         match self {
             Conversion::ValidateRequest => quote! {
-                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type, #res_type> + Send + Sync)> {
+                fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Conversion::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type, #res_type> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Conversion::Domain => quote! {
-                fn to_domain(&self) -> RouterResult<&(dyn Domain<F,#req_type, #res_type>)> {
+                fn to_domain(&self) -> RouterResult<&(dyn Domain<F,#req_type>)> {
                     Ok(*self)
                 }
             },
             Conversion::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type ,#res_type> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F,PaymentData<F>,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
             Conversion::PostUpdateTracker => quote! {
-                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type, #res_type> + Send + Sync)> {
+                fn to_post_update_tracker(&self) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, #req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },

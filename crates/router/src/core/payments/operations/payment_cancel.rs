@@ -26,10 +26,7 @@ use crate::{
 pub struct PaymentCancel;
 
 #[async_trait]
-impl<F: Send + Clone>
-    GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest, api::PaymentsResponse>
-    for PaymentCancel
-{
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -40,7 +37,7 @@ impl<F: Send + Clone>
         request: &api::PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCancelRequest, api::PaymentsResponse>,
+        BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -111,9 +108,7 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest, api::PaymentsResponse>
-    for PaymentCancel
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -122,7 +117,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest, api:
         mut payment_data: PaymentData<F>,
         _customer: Option<Customer>,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest, api::PaymentsResponse>,
+        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
     )>
     where
@@ -144,16 +139,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest, api:
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest, api::PaymentsResponse>
-    for PaymentCancel
-{
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
         merchant_account: &'a storage::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest, api::PaymentsResponse>,
+        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         &'a str,
         api::PaymentIdType,
         Option<api::MandateTxnType>,

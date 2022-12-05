@@ -16,7 +16,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api,
+        self, api,
         storage::{self, enums},
     },
     utils::{generate_id, Encode, OptionExt, ValueExt},
@@ -37,7 +37,14 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
 
-    let payments_response = payments::payments_core::<api::PSync, _, _, _, api::PaymentsResponse>(
+    let payments_response = payments::payments_core::<
+        api::PSync,
+        _,
+        _,
+        _,
+        api::PaymentsResponse,
+        types::PaymentsResponseData,
+    >(
         &state,
         merchant_account.clone(),
         payments::operations::PaymentStatus,

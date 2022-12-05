@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use error_stack::ResultExt;
 use masking::Secret;
 
-use super::{ConstructFlowSpecificData, Feature};
+use super::{ConstructFlowSpecificData, DecideFlow, Feature, Flow};
 use crate::{
     consts,
     core::{
@@ -19,6 +19,34 @@ use crate::{
     },
     utils,
 };
+
+impl Flow<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for PaymentData<api::Authorize>
+{
+    fn to_construct_r_d(
+        &self,
+    ) -> RouterResult<
+        &(dyn ConstructFlowSpecificData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >),
+    > {
+        Ok(self)
+    }
+}
+
+impl DecideFlow<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+{
+    fn to_decide_flows(
+        &self,
+    ) -> RouterResult<
+        &(dyn Feature<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>),
+    > {
+        Ok(self)
+    }
+}
 
 #[async_trait]
 impl
@@ -55,7 +83,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsRespon
     for types::PaymentsAuthorizeRouterData
 {
     async fn decide_flows<'a>(
-        self,
+        &self,
         state: &AppState,
         connector: api::ConnectorData,
         customer: &Option<api::CustomerResponse>,
