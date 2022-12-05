@@ -112,7 +112,9 @@ impl Conversion {
     fn get_res_type(ident: Derives) -> syn::Ident {
         match ident {
             Derives::Session => syn::Ident::new("PaymentsSessionResponse", Span::call_site()),
-            Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
+            Derives::SessionData => {
+                syn::Ident::new("PaymentsSessionResponseData", Span::call_site())
+            }
             Derives::Syncdata
             | Derives::Authorizedata
             | Derives::Canceldata
@@ -301,6 +303,8 @@ pub fn operation_derive_inner(token: proc_macro::TokenStream) -> proc_macro::Tok
                     PaymentsCancelData,
                     PaymentsAuthorizeData,
                     PaymentsResponseData,
+                    PaymentsSessionData,
+                    PaymentsSessionResponseData,
 
                     api::{
                         PaymentsCaptureRequest,

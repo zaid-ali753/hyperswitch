@@ -20,7 +20,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,sessiondata"
 )]
 pub struct PaymentResponse;
 
@@ -109,6 +109,32 @@ impl<F: Clone>
         F: 'b + Send,
     {
         Ok(payment_response_ut(db, payment_id, payment_data, response).await?)
+    }
+}
+
+#[async_trait]
+impl<F: Clone>
+    PostUpdateTracker<
+        F,
+        PaymentData<F>,
+        types::PaymentsSessionData,
+        types::PaymentsSessionResponseData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        response: Option<
+            types::RouterData<F, types::PaymentsSessionData, types::PaymentsSessionResponseData>,
+        >,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        //TODO: update the status in db
+        Ok(payment_data)
     }
 }
 
