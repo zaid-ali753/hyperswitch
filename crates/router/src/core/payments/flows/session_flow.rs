@@ -21,7 +21,8 @@ impl Flow<api::Session, types::PaymentsSessionData, types::PaymentsSessionRespon
             api::Session,
             types::PaymentsSessionData,
             types::PaymentsSessionResponseData,
-        >),
+        > + Send
+              + Sync),
     > {
         Ok(self)
     }
@@ -37,11 +38,9 @@ impl DecideFlow<api::Session, types::PaymentsSessionData, types::PaymentsSession
     fn to_decide_flows(
         &self,
     ) -> RouterResult<
-        &(dyn Feature<
-            api::Session,
-            types::PaymentsSessionData,
-            types::PaymentsSessionResponseData,
-        >),
+        &(dyn Feature<api::Session, types::PaymentsSessionData, types::PaymentsSessionResponseData>
+              + Send
+              + Sync),
     > {
         Ok(self)
     }

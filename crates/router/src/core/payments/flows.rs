@@ -19,7 +19,9 @@ use crate::{
 };
 
 pub trait Flow<F, Req, Res>: Send + std::fmt::Debug {
-    fn to_construct_r_d(&self) -> RouterResult<&(dyn ConstructFlowSpecificData<F, Req, Res>)> {
+    fn to_construct_r_d(
+        &self,
+    ) -> RouterResult<&(dyn ConstructFlowSpecificData<F, Req, Res> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
             format!("construct routerdata interface not found for {self:?}")
         })
@@ -27,7 +29,7 @@ pub trait Flow<F, Req, Res>: Send + std::fmt::Debug {
 }
 
 pub trait DecideFlow<F, Req, Res>: Send + std::fmt::Debug {
-    fn to_decide_flows(&self) -> RouterResult<&(dyn Feature<F, Req, Res>)> {
+    fn to_decide_flows(&self) -> RouterResult<&(dyn Feature<F, Req, Res> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
             format!("construct routerdata interface not found for {self:?}")
         })

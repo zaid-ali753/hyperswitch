@@ -21,7 +21,8 @@ impl Flow<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
             api::PSync,
             types::PaymentsSyncData,
             types::PaymentsResponseData,
-        >),
+        > + Send
+              + Sync),
     > {
         Ok(self)
     }
@@ -33,7 +34,9 @@ impl DecideFlow<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData
     fn to_decide_flows(
         &self,
     ) -> RouterResult<
-        &(dyn Feature<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>),
+        &(dyn Feature<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+              + Send
+              + Sync),
     > {
         Ok(self)
     }

@@ -30,7 +30,8 @@ impl Flow<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseD
             api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
-        >),
+        > + Send
+              + Sync),
     > {
         Ok(self)
     }
@@ -42,7 +43,9 @@ impl DecideFlow<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsRes
     fn to_decide_flows(
         &self,
     ) -> RouterResult<
-        &(dyn Feature<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>),
+        &(dyn Feature<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+              + Send
+              + Sync),
     > {
         Ok(self)
     }

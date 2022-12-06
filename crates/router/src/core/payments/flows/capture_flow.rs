@@ -23,7 +23,8 @@ impl Flow<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
             api::Capture,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
-        >),
+        > + Send
+              + Sync),
     > {
         Ok(self)
     }
@@ -35,7 +36,9 @@ impl DecideFlow<api::Capture, types::PaymentsCaptureData, types::PaymentsRespons
     fn to_decide_flows(
         &self,
     ) -> RouterResult<
-        &(dyn Feature<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>),
+        &(dyn Feature<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+              + Send
+              + Sync),
     > {
         Ok(self)
     }
