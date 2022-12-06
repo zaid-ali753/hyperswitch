@@ -109,6 +109,12 @@ pub(crate) enum ErrorCode {
 
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "",
+        message = "The verification did not succeeded"
+    )]
+    VerificationFailed { data: Option<serde_json::Value> },
+
+    #[error(
+        error_type = StripeErrorType::InvalidRequestError, code = "",
         message = "Reached maximum refund attempts"
     )]
     MaximumRefundCount,
@@ -316,6 +322,7 @@ impl From<ApiErrorResponse> for ErrorCode {
             | ApiErrorResponse::PaymentAuthenticationFailed { data } => {
                 ErrorCode::PaymentIntentAuthenticationFailure { data }
             }
+            ApiErrorResponse::VerificationFailed { data } => ErrorCode::VerificationFailed { data },
             ApiErrorResponse::PaymentCaptureFailed { data } => {
                 ErrorCode::PaymentIntentPaymentAttemptFailed { data }
             }
@@ -399,6 +406,7 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::DuplicateMerchantConnectorAccount
             | ErrorCode::DuplicatePaymentMethod
             | ErrorCode::PaymentFailed
+            | ErrorCode::VerificationFailed { .. }
             | ErrorCode::MaximumRefundCount
             | ErrorCode::PaymentIntentInvalidParameter { .. }
             | ErrorCode::SerdeQsError { .. }
