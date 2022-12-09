@@ -35,11 +35,18 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
+pub type PaymentsSessionResponseRouterData<R> =
+    ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
 
 pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+
+pub type PaymentsSessionType =
+    dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
+
 pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureType =
@@ -117,12 +124,14 @@ pub struct PaymentsCancelData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
-    //TODO: Add the fields here as required
+    pub amount: i32,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Clone)]
 pub struct ConnectorSessionToken {
     pub connector_name: String,
+    pub session_id: Option<String>,
     pub session_token: String,
 }
 
@@ -146,6 +155,7 @@ pub struct PaymentsTransactionResponse {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionResponse {
+    pub session_id: Option<String>,
     pub session_token: String,
 }
 

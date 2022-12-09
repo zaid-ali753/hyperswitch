@@ -375,9 +375,9 @@ where
             .decide_flows(state, connector, customer, CallConnectorAction::Trigger)
             .await?;
 
-        let session_token = match res.response.unwrap() {
+        let (session_id, session_token) = match res.response.unwrap() {
             types::PaymentsResponseData::SessionResponse(session_response) => {
-                Ok(session_response.session_token)
+                Ok((session_response.session_id, session_response.session_token))
             }
             _ => Err(errors::ApiErrorResponse::InternalServerError), //FIXME: raise appropriate error because sessions token not found,
         }?;
@@ -385,6 +385,7 @@ where
         payment_data
             .sessions_token
             .push(types::ConnectorSessionToken {
+                session_id,
                 connector_name,
                 session_token,
             })

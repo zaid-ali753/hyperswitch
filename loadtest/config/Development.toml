@@ -51,3 +51,6 @@ base_url = "https://api.sandbox.checkout.com/"
 
 [connectors.stripe]
 base_url = "http://stripe-mock:12111/"
+
+[connectors.klarna]
+base_url = "https://api-na.playground.klarna.com/"
