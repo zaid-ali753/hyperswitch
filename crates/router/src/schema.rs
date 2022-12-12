@@ -97,8 +97,8 @@ diesel::table! {
         id -> Int4,
         merchant_id -> Varchar,
         connector_name -> Varchar,
-        allowed_payment_methods -> Nullable<Text>,
-        allowed_auth -> Nullable<Text>,
+        allowed_payment_methods -> Text,
+        allowed_auth -> Text,
         credentials -> Nullable<Json>,
     }
 }

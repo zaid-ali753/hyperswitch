@@ -127,16 +127,14 @@ pub struct ConnectorSessionToken {
     pub session_token: String,
 }
 
-
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificData {
     GooglePay {
         allowed_payment_methods: Vec<String>,
         transaction_info: GPayTransactionInfo,
-        merchant_info: serde_json::Value
-    }
+        merchant_info: serde_json::Value,
+    },
 }
-
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct GPayTransactionInfo {
@@ -144,8 +142,7 @@ pub struct GPayTransactionInfo {
     // Expected as a string
     total_price: String,
     currency_code: storage_enums::Currency,
-    country_code: String
-
+    country_code: String,
 }
 
 #[derive(serde::Serialize, Debug)]

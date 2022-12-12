@@ -86,13 +86,12 @@ pub mod iso8601 {
     }
 }
 
-
 /// Custom serialization for Vec<String>
 pub mod vec_string {
     /// Serialization for converting Vec<String> to a String
-    pub fn serializer<S>(data: Vec<String>, serializer: S) -> Result<S::Ok, S::Error> 
+    pub fn serializer<S>(data: Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer
+        S: serde::Serializer,
     {
         let s = serde_json::to_string(&data).map_err(serde::ser::Error::custom)?;
         serializer.serialize_str(&s)
