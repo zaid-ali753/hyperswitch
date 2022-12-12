@@ -803,7 +803,7 @@ pub struct PaymentsSessionRequest {
 
 #[derive(Default, Debug, serde::Serialize, Clone)]
 pub struct PaymentsSessionResponse {
-    pub session_token: Vec<types::ConnectorSessionToken>,
+    pub session_token: Vec<types::ConnectorSpecificData>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]

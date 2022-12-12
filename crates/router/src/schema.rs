@@ -93,6 +93,20 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::types::storage::enums::diesel_exports::*;
 
+    google_pay_credentials (id) {
+        id -> Int4,
+        merchant_id -> Varchar,
+        connector_name -> Varchar,
+        allowed_payment_methods -> Nullable<Text>,
+        allowed_auth -> Nullable<Text>,
+        credentials -> Nullable<Json>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::types::storage::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         card_id -> Varchar,
@@ -341,6 +355,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     connector_response,
     customers,
     events,
+    google_pay_credentials,
     locker_mock_up,
     mandate,
     merchant_account,

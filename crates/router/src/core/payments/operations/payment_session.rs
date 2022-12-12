@@ -113,6 +113,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Database error when finding connector response")
             })?;
+        
+        
+        
 
         Ok((
             Box::new(self),
@@ -272,3 +275,4 @@ where
         Ok(api::ConnectorCallType::Multiple(connectors_data))
     }
 }
+
