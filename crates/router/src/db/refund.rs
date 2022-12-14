@@ -340,13 +340,15 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{}_{}", txn_id, merchant_id);
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
+                        Ok(l) => l,
+                        Err(_) => return Ok(vec![]),
+                    };
                     let key = &lookup.result_id;
-                    let payment_id = key.split('_').next().ok_or(errors::StorageError::KVError)?;
+                    let payment_id = key
+                        .split("_mer")
+                        .next()
+                        .ok_or(errors::StorageError::KVError)?;
 
                     let field = format!("pa_{}_ref_*", payment_id);
                     let redis_results = self
@@ -467,7 +469,10 @@ mod storage {
                         .map_err(Into::<errors::StorageError>::into)
                         .into_report()?;
                     let key = &lookup.result_id;
-                    let payment_id = key.split('_').next().ok_or(errors::StorageError::KVError)?;
+                    let payment_id = key
+                        .split("_mer")
+                        .next()
+                        .ok_or(errors::StorageError::KVError)?;
                     let field = format!("pa_{}_ref_{}", payment_id, refund_id);
 
                     self.redis_conn
@@ -516,11 +521,11 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{}_{}", payment_id, merchant_id);
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
+                        Ok(l) => l,
+                        Err(_) => return Ok(vec![]),
+                    };
+
                     let key = &lookup.result_id;
                     let payment_id = key.split('_').next().ok_or(errors::StorageError::KVError)?;
 
