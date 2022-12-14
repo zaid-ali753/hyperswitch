@@ -308,6 +308,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 
 [[package]]
+name = "api_models"
+version = "0.1.0"
+dependencies = [
+ "common_utils",
+ "masking",
+ "router_derive",
+ "serde",
+ "serde_json",
+ "strum",
+ "time",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -905,6 +918,7 @@ dependencies = [
  "error-stack",
  "fake",
  "masking",
+ "nanoid",
  "once_cell",
  "proptest",
  "regex",
@@ -1814,6 +1828,7 @@ dependencies = [
  "diesel",
  "serde",
  "serde_json",
+ "subtle",
  "zeroize",
 ]
 
@@ -2480,6 +2495,7 @@ dependencies = [
  "router_env",
  "serde",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -2598,6 +2614,7 @@ dependencies = [
  "actix-http",
  "actix-rt",
  "actix-web",
+ "api_models",
  "async-bb8-diesel",
  "async-trait",
  "awc",
@@ -2614,7 +2631,6 @@ dependencies = [
  "dyn-clone",
  "encoding_rs",
  "error-stack",
- "fred",
  "futures",
  "hex",
  "http",
@@ -2635,7 +2651,9 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_qs",
+ "serde_repr",
  "serde_urlencoded",
+ "storage_models",
  "structopt",
  "strum",
  "thiserror",
@@ -2894,6 +2912,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fe39d9fbb0ebf5eb2c7cb7e2a47e4f462fad1379f1166b8ae49ad9eae89a7ca"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2979,6 +3008,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
+name = "storage_models"
+version = "0.1.0"
+dependencies = [
+ "async-bb8-diesel",
+ "async-trait",
+ "common_utils",
+ "diesel",
+ "error-stack",
+ "hex",
+ "masking",
+ "router_derive",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum",
+ "thiserror",
+ "time",
+]
+
+[[package]]
 name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3029,6 +3078,12 @@ dependencies = [
  "rustversion",
  "syn",
 ]
+
+[[package]]
+name = "subtle"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "supports-color"

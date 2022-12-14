@@ -14,7 +14,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, PaymentIdTypeExt},
         storage::{self, enums, Customer},
     },
     utils::OptionExt,
@@ -105,6 +105,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                     refunds: vec![],
                     connector_response,
                     sessions_token: vec![],
+                    card_cvc: None,
                 },
                 None,
             )),

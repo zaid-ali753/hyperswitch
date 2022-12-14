@@ -36,4 +36,14 @@ pub enum RedisError {
     JsonSerializationFailed,
     #[error("Failed to deserialize application type from JSON")]
     JsonDeserializationFailed,
+    #[error("Failed to set hash in Redis")]
+    SetHashFailed,
+    #[error("Failed to set hash field in Redis")]
+    SetHashFieldFailed,
+    #[error("Failed to get hash field in Redis")]
+    GetHashFieldFailed,
+    #[error("The requested value was not found in Redis")]
+    NotFound,
+    #[error("Invalid RedisEntryId provided")]
+    InvalidRedisEntryId,
 }

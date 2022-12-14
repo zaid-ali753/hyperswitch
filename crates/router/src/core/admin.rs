@@ -10,16 +10,18 @@ use crate::{
     types::{
         self, api,
         storage::{self, MerchantAccount},
+        transformers::ForeignInto,
     },
     utils::{self, OptionExt, ValueExt},
 };
 
 #[inline]
 fn create_merchant_api_key() -> String {
+    let id = Uuid::new_v4().simple();
     match env::which() {
-        Env::Development => format!("dev_{}", &Uuid::new_v4().simple().to_string()),
-        Env::Production => format!("prd_{}", &Uuid::new_v4().simple().to_string()),
-        Env::Sandbox => format!("snd_{}", &Uuid::new_v4().simple().to_string()),
+        Env::Development => format!("dev_{id}"),
+        Env::Production => format!("prd_{id}"),
+        Env::Sandbox => format!("snd_{id}"),
     }
 }
 
@@ -55,7 +57,7 @@ pub async fn create_merchant_account(
         merchant_details: Some(merchant_details),
         return_url: req.return_url,
         webhook_details: Some(webhook_details),
-        routing_algorithm: req.routing_algorithm.map(Into::into),
+        routing_algorithm: req.routing_algorithm.map(ForeignInto::foreign_into),
         custom_routing_rules: Some(custom_routing_rules),
         sub_merchants_enabled: req.sub_merchants_enabled,
         parent_merchant_id: get_parent_merchant(
@@ -110,7 +112,9 @@ pub async fn get_merchant_account(
         merchant_details,
         return_url: merchant_account.return_url,
         webhook_details,
-        routing_algorithm: merchant_account.routing_algorithm.map(Into::into),
+        routing_algorithm: merchant_account
+            .routing_algorithm
+            .map(ForeignInto::foreign_into),
         custom_routing_rules,
         sub_merchants_enabled: merchant_account.sub_merchants_enabled,
         parent_merchant_id: merchant_account.parent_merchant_id,
@@ -173,7 +177,7 @@ pub async fn merchant_account_update(
         },
         routing_algorithm: req
             .routing_algorithm
-            .map(Into::into)
+            .map(ForeignInto::foreign_into)
             .or(merchant_account.routing_algorithm),
         custom_routing_rules: if req.custom_routing_rules.is_some() {
             Some(
@@ -310,7 +314,7 @@ pub async fn create_payment_connector(
 
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
-        connector_type: Some(req.connector_type.into()),
+        connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
         merchant_connector_id: None,
         connector_account_details: req.connector_account_details,
@@ -358,7 +362,7 @@ pub async fn retrieve_payment_connector(
         None => None,
     };
     let response = api::PaymentConnectorCreate {
-        connector_type: mca.connector_type.into(),
+        connector_type: mca.connector_type.foreign_into(),
         connector_name: mca.connector_name,
         merchant_connector_id: Some(mca.merchant_connector_id),
         connector_account_details: Some(Secret::new(mca.connector_account_details)),
@@ -409,7 +413,7 @@ pub async fn update_payment_connector(
     };
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
-        connector_type: Some(req.connector_type.into()),
+        connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
         merchant_connector_id: Some(merchant_connector_id),
         connector_account_details: req
@@ -425,7 +429,7 @@ pub async fn update_payment_connector(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let response = api::PaymentConnectorCreate {
-        connector_type: updated_mca.connector_type.into(),
+        connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,
         merchant_connector_id: Some(updated_mca.merchant_connector_id),
         connector_account_details: Some(Secret::new(updated_mca.connector_account_details)),

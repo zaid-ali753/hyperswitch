@@ -1,6 +1,7 @@
+use storage_models::{errors, CustomResult};
+
 use crate::{
     connection::pg_connection,
-    core::errors::{self, CustomResult},
     types::storage::reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 
@@ -9,11 +10,11 @@ pub trait ReverseLookupInterface {
     async fn insert_reverse_lookup(
         &self,
         _new: ReverseLookupNew,
-    ) -> CustomResult<ReverseLookup, errors::StorageError>;
+    ) -> CustomResult<ReverseLookup, errors::DatabaseError>;
     async fn get_lookup_by_lookup_id(
         &self,
         _id: &str,
-    ) -> CustomResult<ReverseLookup, errors::StorageError>;
+    ) -> CustomResult<ReverseLookup, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -21,7 +22,7 @@ impl ReverseLookupInterface for super::Store {
     async fn insert_reverse_lookup(
         &self,
         new: ReverseLookupNew,
-    ) -> CustomResult<ReverseLookup, errors::StorageError> {
+    ) -> CustomResult<ReverseLookup, errors::DatabaseError> {
         let conn = pg_connection(&self.master_pool).await;
         new.insert(&conn).await
     }
@@ -29,7 +30,7 @@ impl ReverseLookupInterface for super::Store {
     async fn get_lookup_by_lookup_id(
         &self,
         id: &str,
-    ) -> CustomResult<ReverseLookup, errors::StorageError> {
+    ) -> CustomResult<ReverseLookup, errors::DatabaseError> {
         let conn = pg_connection(&self.master_pool).await;
         ReverseLookup::find_by_lookup_id(id, &conn).await
     }
@@ -40,13 +41,13 @@ impl ReverseLookupInterface for super::MockDb {
     async fn insert_reverse_lookup(
         &self,
         _new: ReverseLookupNew,
-    ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+    ) -> CustomResult<ReverseLookup, errors::DatabaseError> {
+        Err(errors::DatabaseError::NotFound.into())
     }
     async fn get_lookup_by_lookup_id(
         &self,
         _id: &str,
-    ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+    ) -> CustomResult<ReverseLookup, errors::DatabaseError> {
+        Err(errors::DatabaseError::NotFound.into())
     }
 }
