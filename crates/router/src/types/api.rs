@@ -64,9 +64,17 @@ impl<T: Refund + Payment + Debug + ConnectorRedirectResponse + Send + IncomingWe
 
 type BoxedConnector = Box<&'static (dyn Connector + marker::Sync)>;
 
+// Normal flow will call the connector and follow the flow specific operations (capture, authorize)
+// SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
+pub enum GetToken {
+    Metadata,
+    Connector,
+}
+
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
+    pub get_token: GetToken,
 }
 
 pub enum ConnectorCallType {
@@ -78,6 +86,7 @@ impl ConnectorData {
     pub fn get_connector_by_name(
         connectors: &Connectors,
         name: &str,
+        connector_type: GetToken,
     ) -> CustomResult<ConnectorData, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = types::Connector::from_str(name)
@@ -88,6 +97,7 @@ impl ConnectorData {
         Ok(ConnectorData {
             connector,
             connector_name,
+            get_token: connector_type,
         })
     }
 
@@ -103,6 +113,7 @@ impl ConnectorData {
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
+            "applepay" => Ok(Box::new(&connector::Applepay)),
             _ => Err(report!(errors::UnexpectedError)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ConnectorError::InvalidConnectorName)

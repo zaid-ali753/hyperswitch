@@ -48,6 +48,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
         address: PaymentAddress::default(),
+        connector_meta_data: None,
     }
 }
 
@@ -58,6 +59,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 
     types::RouterData {
         flow: PhantomData,
+        connector_meta_data: None,
         merchant_id: "checkout".to_string(),
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -98,6 +100,7 @@ async fn test_checkout_payment_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
@@ -136,6 +139,7 @@ async fn test_checkout_refund_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
@@ -201,6 +205,7 @@ async fn test_checkout_payment_failure() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
@@ -232,6 +237,7 @@ async fn test_checkout_refund_failure() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Checkout,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,

@@ -1,3 +1,5 @@
+use std::num::NonZeroI64;
+
 use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -22,7 +24,7 @@ pub struct PaymentsRequest {
     pub amount: Option<Amount>,
     pub currency: Option<String>,
     pub capture_method: Option<api_enums::CaptureMethod>,
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: Option<bool>,
@@ -53,25 +55,23 @@ pub struct PaymentsRequest {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Amount {
-    Value(i32),
+    Value(NonZeroI64),
     #[default]
     Zero,
 }
 
-impl From<Amount> for i32 {
+impl From<Amount> for i64 {
     fn from(amount: Amount) -> Self {
         match amount {
-            Amount::Value(v) => v,
+            Amount::Value(val) => val.get(),
             Amount::Zero => 0,
         }
     }
 }
-impl From<i32> for Amount {
-    fn from(val: i32) -> Self {
-        match val {
-            0 => Amount::Zero,
-            amount => Amount::Value(amount),
-        }
+
+impl From<i64> for Amount {
+    fn from(val: i64) -> Self {
+        NonZeroI64::new(val).map_or(Amount::Zero, Amount::Value)
     }
 }
 
@@ -138,13 +138,13 @@ pub struct MandateData {
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SingleUseMandate {
-    pub amount: i32,
+    pub amount: i64,
     pub currency: api_enums::Currency,
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct MandateAmountData {
-    pub amount: i32,
+    pub amount: i64,
     pub currency: api_enums::Currency,
 }
 
@@ -270,7 +270,16 @@ impl Default for PaymentIdType {
 //}
 //}
 
-#[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Default,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    frunk::LabelledGeneric,
+)]
 #[serde(deny_unknown_fields)]
 pub struct Address {
     pub address: Option<AddressDetails>,
@@ -278,7 +287,16 @@ pub struct Address {
 }
 
 // used by customers also, could be moved outside
-#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    frunk::LabelledGeneric,
+)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     pub city: Option<String>,
@@ -292,7 +310,16 @@ pub struct AddressDetails {
     pub last_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    frunk::LabelledGeneric,
+)]
 pub struct PhoneDetails {
     pub number: Option<Secret<String>>,
     pub country_code: Option<String>,
@@ -302,7 +329,7 @@ pub struct PhoneDetails {
 pub struct PaymentsCaptureRequest {
     pub payment_id: Option<String>,
     pub merchant_id: Option<String>,
-    pub amount_to_capture: Option<i32>,
+    pub amount_to_capture: Option<i64>,
     pub refund_uncaptured_amount: Option<bool>,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor_prefix: Option<String>,
@@ -337,9 +364,10 @@ pub struct PaymentsResponse {
     pub payment_id: Option<String>,
     pub merchant_id: Option<String>,
     pub status: api_enums::IntentStatus,
-    pub amount: i32,
-    pub amount_capturable: Option<i32>,
-    pub amount_received: Option<i32>,
+    pub amount: i64,
+    pub amount_capturable: Option<i64>,
+    pub amount_received: Option<i64>,
+    pub connector: Option<String>,
     pub client_secret: Option<Secret<String>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
@@ -371,7 +399,7 @@ pub struct PaymentsResponse {
     pub statement_descriptor_suffix: Option<String>,
     pub next_action: Option<NextAction>,
     pub cancellation_reason: Option<String>,
-    pub error_code: Option<String>, //TODO: Add error code column to the database
+    pub error_code: Option<String>,
     pub error_message: Option<String>,
 }
 
@@ -628,7 +656,7 @@ pub struct PgRedirectResponse {
     pub status: api_enums::IntentStatus,
     pub gateway_id: String,
     pub customer_id: Option<String>,
-    pub amount: Option<i32>,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
@@ -663,17 +691,84 @@ pub struct PaymentsSessionRequest {
     pub client_secret: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayAllowedMethodsParameters {
+    pub allowed_auth_methods: Vec<String>,
+    pub allowed_card_networks: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayTokenParameters {
+    pub gateway: String,
+    pub gateway_merchant_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayTokenizationSpecification {
+    #[serde(rename = "type")]
+    pub token_specification_type: String,
+    pub parameters: GpayTokenParameters,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayAllowedPaymentMethods {
+    #[serde(rename = "type")]
+    pub payment_method_type: String,
+    pub parameters: GpayAllowedMethodsParameters,
+    pub tokenization_specification: GpayTokenizationSpecification,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayTransactionInfo {
+    pub country_code: String,
+    pub currency_code: String,
+    pub total_price_status: String,
+    pub total_price: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayMerchantInfo {
+    pub merchant_name: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpayMetadata {
+    pub merchant_info: GpayMerchantInfo,
+    pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GpaySessionTokenData {
+    pub gpay: GpayMetadata,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "connector_name")]
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
-    Gpay {},
+    Gpay {
+        allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
+        transaction_info: GpayTransactionInfo,
+    },
     Klarna {
         session_token: String,
         session_id: String,
     },
     Paypal {
         session_token: String,
+    },
+    Applepay {
+        epoch_timestamp: u64,
+        expires_at: u64,
+        merchant_session_identifier: String,
+        nonce: String,
+        merchant_identifier: String,
+        domain_name: String,
+        display_name: String,
+        signature: String,
+        operational_analytics_identifier: String,
+        retries: u8,
+        psp_id: String,
     },
 }
 
@@ -803,10 +898,7 @@ mod amount {
         where
             E: de::Error,
         {
-            Ok(match v {
-                0 => Amount::Zero,
-                amount => Amount::Value(amount as i32),
-            })
+            Ok(Amount::from(v))
         }
     }
 

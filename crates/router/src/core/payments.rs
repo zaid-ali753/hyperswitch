@@ -169,7 +169,6 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -183,7 +182,6 @@ where
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op> + From<Req>,
-
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
@@ -237,8 +235,11 @@ where
         },
     )?;
 
-    let connector_data =
-        api::ConnectorData::get_connector_by_name(&state.conf.connectors, &connector)?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector,
+        api::GetToken::Connector,
+    )?;
 
     let flow_type = connector_data
         .connector
@@ -357,7 +358,6 @@ where
     Ok(response)
 }
 
-#[allow(dead_code)]
 async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
@@ -404,17 +404,16 @@ where
 
     for (connector_res, connector) in result.into_iter().zip(connectors) {
         let connector_name = connector.connector_name.to_string();
-        match connector_res?.response {
+        match connector_res {
             Ok(connector_response) => {
-                if let types::PaymentsResponseData::SessionResponse { session_token } =
-                    connector_response
+                if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
+                    connector_response.response
                 {
                     payment_data.sessions_token.push(session_token);
                 }
             }
-
             Err(connector_error) => {
-                logger::debug!(
+                logger::error!(
                     "sessions_connector_error {} {:?}",
                     connector_name,
                     connector_error
@@ -522,15 +521,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     payment_data: &PaymentData<F>,
 ) -> bool {
     match format!("{:?}", operation).as_str() {
-        "PaymentConfirm" => {
-            payment_data
-                .payment_attempt
-                .authentication_type
-                .unwrap_or_default()
-                == enums::AuthenticationType::NoThreeDs
-                || payment_data.payment_attempt.payment_method
-                    == Some(enums::PaymentMethodType::PayLater)
-        }
+        "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(
                 payment_data.payment_intent.status,

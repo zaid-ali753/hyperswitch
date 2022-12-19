@@ -55,8 +55,17 @@ pub(crate) enum ErrorCode {
     #[error(error_type = StripeErrorType::ApiError, code = "internal_server_error", message = "Server is down")]
     DuplicateRefundRequest,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "active_mandate", message = "Customer has active mandate")]
+    MandateActive,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_redacted", message = "Customer has redacted")]
+    CustomerRedacted,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such refund")]
     RefundNotFound,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "client_secret_invalid", message = "Expected client secret to be included in the request")]
+    ClientSecretNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such customer")]
     CustomerNotFound,
@@ -340,11 +349,14 @@ impl From<ApiErrorResponse> for ErrorCode {
             ApiErrorResponse::RefundFailed { data } => ErrorCode::RefundFailed, // Nothing at stripe to map
 
             ApiErrorResponse::InternalServerError => ErrorCode::InternalServerError, // not a stripe code
+            ApiErrorResponse::MandateActive => ErrorCode::MandateActive, //not a stripe code
+            ApiErrorResponse::CustomerRedacted => ErrorCode::CustomerRedacted, //not a stripe code
             ApiErrorResponse::DuplicateRefundRequest => ErrorCode::DuplicateRefundRequest,
             ApiErrorResponse::RefundNotFound => ErrorCode::RefundNotFound,
             ApiErrorResponse::CustomerNotFound => ErrorCode::CustomerNotFound,
             ApiErrorResponse::PaymentNotFound => ErrorCode::PaymentNotFound,
             ApiErrorResponse::PaymentMethodNotFound => ErrorCode::PaymentMethodNotFound,
+            ApiErrorResponse::ClientSecretNotGiven => ErrorCode::ClientSecretNotFound,
             ApiErrorResponse::MerchantAccountNotFound => ErrorCode::MerchantAccountNotFound,
             ApiErrorResponse::ResourceIdNotFound => ErrorCode::ResourceIdNotFound,
             ApiErrorResponse::MerchantConnectorAccountNotFound => {
@@ -412,6 +424,7 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::DuplicateRefundRequest
             | ErrorCode::RefundNotFound
             | ErrorCode::CustomerNotFound
+            | ErrorCode::ClientSecretNotFound
             | ErrorCode::PaymentNotFound
             | ErrorCode::PaymentMethodNotFound
             | ErrorCode::MerchantAccountNotFound
@@ -433,9 +446,10 @@ impl actix_web::ResponseError for ErrorCode {
             | ErrorCode::ResourceIdNotFound
             | ErrorCode::PaymentIntentMandateInvalid { .. }
             | ErrorCode::PaymentIntentUnexpectedState { .. } => StatusCode::BAD_REQUEST,
-            ErrorCode::RefundFailed | ErrorCode::InternalServerError => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            ErrorCode::RefundFailed
+            | ErrorCode::InternalServerError
+            | ErrorCode::MandateActive
+            | ErrorCode::CustomerRedacted => StatusCode::INTERNAL_SERVER_ERROR,
             ErrorCode::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
         }
     }

@@ -51,6 +51,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method_id: None,
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
+        connector_meta_data: None,
     }
 }
 
@@ -61,6 +62,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 
     types::RouterData {
         flow: PhantomData,
+        connector_meta_data: None,
         merchant_id: String::from("authorizedotnet"),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -100,6 +102,7 @@ async fn payments_create_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
@@ -134,6 +137,7 @@ async fn payments_create_failure() {
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Authorizedotnet,
+            get_token: types::api::GetToken::Connector,
         };
         let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
         let connector_integration: services::BoxedConnectorIntegration<
@@ -177,6 +181,7 @@ async fn refunds_create_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
@@ -212,6 +217,7 @@ async fn refunds_create_failure() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Authorizedotnet,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<

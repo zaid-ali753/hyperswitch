@@ -51,6 +51,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
         address: PaymentAddress::default(),
+        connector_meta_data: None,
     }
 }
 
@@ -89,6 +90,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_method_id: None,
         response: Err(types::ErrorResponse::default()),
         address: PaymentAddress::default(),
+        connector_meta_data: None,
     }
 }
 
@@ -102,6 +104,7 @@ async fn payments_create_success() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
+        get_token: types::api::GetToken::Connector,
     };
     let connector_integration: services::BoxedConnectorIntegration<
         types::api::Authorize,
@@ -133,6 +136,7 @@ async fn payments_create_failure() {
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Aci,
+            get_token: types::api::GetToken::Connector,
         };
         let connector_integration: services::BoxedConnectorIntegration<
             types::api::Authorize,
@@ -169,6 +173,7 @@ async fn refund_for_successful_payments() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<
@@ -224,6 +229,7 @@ async fn refunds_create_failure() {
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
         connector_name: types::Connector::Aci,
+        get_token: types::api::GetToken::Connector,
     };
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     let connector_integration: services::BoxedConnectorIntegration<

@@ -1,5 +1,6 @@
 use std::collections;
 
+use common_utils::{consts, generate_id};
 use error_stack::{report, ResultExt};
 use router_env::{tracing, tracing::instrument};
 
@@ -26,17 +27,18 @@ pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::CreatePaymentMethod,
     customer_id: String,
-    payment_method_id: String,
+    payment_method_id: &str,
     merchant_id: &str,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id,
             merchant_id: merchant_id.to_string(),
-            payment_method_id,
+            payment_method_id: payment_method_id.to_string(),
             payment_method: req.payment_method.foreign_into(),
             payment_method_type: req.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: req.payment_method_issuer.clone(),
+            metadata: req.metadata.clone(),
             ..storage::PaymentMethodNew::default()
         })
         .await?;
@@ -59,19 +61,20 @@ pub async fn add_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed"),
         None => {
+            let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
             create_payment_method(
                 &*state.store,
                 &req,
                 customer_id,
-                "payment_method_id".to_owned(),
+                &payment_method_id,
                 &merchant_id,
-            ) //TODO where will we get this for other payment_method
+            )
             .await
             .map_err(|error| {
                 error.to_duplicate_response(errors::ApiErrorResponse::DuplicatePaymentMethod)
             })?;
             Ok(api::PaymentMethodResponse {
-                payment_method_id: String::from("payment_method_id"),
+                payment_method_id: payment_method_id.to_string(),
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 payment_method_issuer: req.payment_method_issuer,
@@ -81,11 +84,46 @@ pub async fn add_payment_method(
                 payment_method_issuer_code: req.payment_method_issuer_code,
                 recurring_enabled: false,           //TODO
                 installment_payment_enabled: false, //TODO
-                payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO
+                payment_experience: Some(vec![
+                    api_models::payment_methods::PaymentExperience::RedirectToUrl,
+                ]), //TODO
             })
         }
     }
     .map(services::BachResponse::Json)
+}
+
+#[instrument(skip_all)]
+pub async fn update_customer_payment_method(
+    state: &routes::AppState,
+    merchant_account: storage::MerchantAccount,
+    req: api::UpdatePaymentMethod,
+    payment_method_id: &str,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    let db = &*state.store;
+    let pm = db
+        .delete_payment_method_by_merchant_id_payment_method_id(
+            &merchant_account.merchant_id,
+            payment_method_id,
+        )
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+        })?;
+    if pm.payment_method == enums::PaymentMethodType::Card {
+        delete_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
+    };
+    let new_pm = api::CreatePaymentMethod {
+        merchant_id: Some(merchant_account.merchant_id.clone()),
+        payment_method: pm.payment_method.foreign_into(),
+        payment_method_type: pm.payment_method_type.map(|x| x.foreign_into()),
+        payment_method_issuer: pm.payment_method_issuer,
+        payment_method_issuer_code: pm.payment_method_issuer_code.map(|x| x.foreign_into()),
+        card: req.card,
+        metadata: req.metadata,
+        customer_id: Some(pm.customer_id),
+    };
+    add_payment_method(state, new_pm, merchant_account.merchant_id).await
 }
 
 #[instrument(skip_all)]
@@ -116,7 +154,7 @@ pub async fn add_card(
         }?;
         response
     } else {
-        let card_id = uuid::Uuid::new_v4().to_string();
+        let card_id = generate_id(consts::ID_LENGTH, "card");
         mock_add_card(db, &card_id, &card, None).await?
     };
 
@@ -124,7 +162,7 @@ pub async fn add_card(
         db,
         &req,
         customer_id.to_string(),
-        response.card_id.to_owned(),
+        &response.card_id,
         merchant_id,
     )
     .await
@@ -205,6 +243,23 @@ pub async fn mock_get_card<'a>(
 }
 
 #[instrument(skip_all)]
+pub async fn mock_delete_card<'a>(
+    db: &dyn db::StorageInterface,
+    card_id: &'a str,
+) -> errors::CustomResult<payment_methods::DeleteCardResponse, errors::CardVaultError> {
+    let locker_mock_up = db
+        .delete_locker_mock_up(card_id)
+        .await
+        .change_context(errors::CardVaultError::FetchCardFailed)?;
+    Ok(payment_methods::DeleteCardResponse {
+        card_id: locker_mock_up.card_id,
+        external_id: locker_mock_up.external_id,
+        card_isin: None,
+        status: "SUCCESS".to_string(),
+    })
+}
+
+#[instrument(skip_all)]
 pub async fn get_card_from_legacy_locker<'a>(
     state: &'a routes::AppState,
     merchant_id: &'a str,
@@ -245,17 +300,25 @@ pub async fn delete_card<'a>(
     merchant_id: &'a str,
     card_id: &'a str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResponse> {
+    let locker = &state.conf.locker;
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
     // FIXME use call_api 2. Serde's handle should be inside the generic function
-    let delete_card_resp = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
-        .response
-        .parse_struct("DeleteCardResponse")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let delete_card_resp = if !locker.mock_locker {
+        services::call_connector_api(state, request)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?
+            .response
+            .parse_struct("DeleteCardResponse")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+    } else {
+        mock_delete_card(&*state.store, card_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+    };
+
     Ok(delete_card_resp)
 }
 
@@ -440,7 +503,7 @@ pub async fn list_customer_payment_method(
     }
     let mut vec = Vec::new();
     for pm in resp.into_iter() {
-        let payment_token = uuid::Uuid::new_v4().to_string();
+        let payment_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethodType::Card {
             Some(get_lookup_key_from_locker(state, &payment_token, &pm).await?)
         } else {
@@ -454,13 +517,15 @@ pub async fn list_customer_payment_method(
             payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: pm.payment_method_issuer,
             card,
-            metadata: None,
+            metadata: pm.metadata,
             payment_method_issuer_code: pm
                 .payment_method_issuer_code
                 .map(ForeignInto::foreign_into),
             recurring_enabled: false,
             installment_payment_enabled: false,
-            payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO chnage to enum
+            payment_experience: Some(vec![
+                api_models::payment_methods::PaymentExperience::RedirectToUrl,
+            ]),
             created: Some(pm.created_at),
         };
         vec.push(pma);
@@ -646,12 +711,14 @@ pub async fn retrieve_payment_method(
         payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
         payment_method_issuer: pm.payment_method_issuer,
         card,
-        metadata: None, // TODO add in addCard api
+        metadata: pm.metadata,
         created: Some(pm.created_at),
         payment_method_issuer_code: pm.payment_method_issuer_code.map(ForeignInto::foreign_into),
-        recurring_enabled: false,                                      //TODO
-        installment_payment_enabled: false,                            //TODO
-        payment_experience: Some(vec!["redirect_to_url".to_string()]), //TODO,
+        recurring_enabled: false,           //TODO
+        installment_payment_enabled: false, //TODO
+        payment_experience: Some(vec![
+            api_models::payment_methods::PaymentExperience::RedirectToUrl,
+        ]), //TODO,
     }))
 }
 
