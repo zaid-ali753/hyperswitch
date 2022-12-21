@@ -91,6 +91,12 @@ locker_decryption_key2 = "" # private key 2 in pem format, corresponding public 
 [eph_key]
 validity = 1
 
+
+# Refund configuration
+[refund]
+max_attempts = 10
+max_age = 365
+
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.

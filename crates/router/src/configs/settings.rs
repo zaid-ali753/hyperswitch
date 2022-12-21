@@ -7,7 +7,7 @@ use serde::Deserialize;
 use structopt::StructOpt;
 
 use crate::{
-    core::errors::{BachError, BachResult},
+    core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
 };
 
@@ -33,11 +33,18 @@ pub struct Settings {
     pub keys: Keys, //remove this during refactoring
     pub locker: Locker,
     pub connectors: Connectors,
+    pub refund: Refund,
     pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
     pub jwekey: Jwekey,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Refund {
+    pub max_attempts: usize,
+    pub max_age: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -149,11 +156,11 @@ pub struct DrainerSettings {
 }
 
 impl Settings {
-    pub fn new() -> BachResult<Self> {
+    pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
     }
 
-    pub fn with_config_path(config_path: Option<PathBuf>) -> BachResult<Self> {
+    pub fn with_config_path(config_path: Option<PathBuf>) -> ApplicationResult<Self> {
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
@@ -185,7 +192,7 @@ impl Settings {
         serde_path_to_error::deserialize(config).map_err(|error| {
             logger::error!(%error, "Unable to deserialize application configuration");
             eprintln!("Unable to deserialize application configuration: {error}");
-            BachError::from(error.into_inner())
+            ApplicationError::from(error.into_inner())
         })
     }
 }

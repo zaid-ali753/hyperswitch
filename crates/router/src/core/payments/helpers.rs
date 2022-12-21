@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-// TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
@@ -42,7 +41,6 @@ pub async fn get_address_for_payment_request(
     merchant_id: &str,
     customer_id: &Option<String>,
 ) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
-    // TODO: Refactor this function for more readability (TryFrom)
     Ok(match req_address {
         Some(address) => {
             match address_id {
@@ -152,8 +150,6 @@ pub async fn get_token_for_recurring_mandate(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
 
-    // TODO: Make currency in payments request as Currency enum
-
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
     let payment_method_id = {
@@ -171,7 +167,7 @@ pub async fn get_token_for_recurring_mandate(
     };
     verify_mandate_details(
         req.amount.get_required_value("amount")?.into(),
-        req.currency.clone().get_required_value("currency")?,
+        req.currency.get_required_value("currency")?.foreign_into(),
         mandate.clone(),
     )?;
 
@@ -361,7 +357,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 
 pub fn verify_mandate_details(
     request_amount: i64,
-    request_currency: String,
+    request_currency: storage_enums::Currency,
     mandate: storage::Mandate,
 ) -> RouterResult<()> {
     match mandate.mandate_type {
@@ -389,7 +385,7 @@ pub fn verify_mandate_details(
     utils::when(
         mandate
             .mandate_currency
-            .map(|mandate_currency| mandate_currency.to_string() != request_currency)
+            .map(|mandate_currency| mandate_currency != request_currency)
             .unwrap_or(true),
         Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "cross currency mandates not supported".to_string()
@@ -522,7 +518,7 @@ pub(crate) async fn call_payment_method(
                             .await
                             .attach_printable("Error on adding payment method")?;
                             match resp {
-                                crate::services::BachResponse::Json(payment_method) => {
+                                crate::services::ApplicationResponse::Json(payment_method) => {
                                     Ok(payment_method)
                                 }
                                 _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -554,7 +550,9 @@ pub(crate) async fn call_payment_method(
                     .await
                     .attach_printable("Error on adding payment method")?;
                     match resp {
-                        crate::services::BachResponse::Json(payment_method) => Ok(payment_method),
+                        crate::services::ApplicationResponse::Json(payment_method) => {
+                            Ok(payment_method)
+                        }
                         _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Error on adding payment method")),
                     }
@@ -742,7 +740,6 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let (payment_method, payment_token) = match (request, token) {
         (_, Some(token)) => Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
             if payment_method_type == Some(storage_enums::PaymentMethodType::Card) {
-                // TODO: Handle token expiry
                 let pm = Vault::get_payment_method_data_from_locker(state, token).await?;
                 let updated_pm = match (pm.clone(), card_cvc) {
                     (Some(api::PaymentMethod::Card(card)), Some(card_cvc)) => {
@@ -756,7 +753,6 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 };
                 (updated_pm, Some(token.to_string()))
             } else {
-                // TODO: Implement token flow for other payment methods
                 (None, Some(token.to_string()))
             },
         ),
@@ -1084,7 +1080,7 @@ pub async fn make_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub async fn delete_ephemeral_key(
@@ -1096,7 +1092,7 @@ pub async fn delete_ephemeral_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete ephemeral key")?;
-    Ok(services::BachResponse::Json(ek))
+    Ok(services::ApplicationResponse::Json(ek))
 }
 
 pub fn make_pg_redirect_response(

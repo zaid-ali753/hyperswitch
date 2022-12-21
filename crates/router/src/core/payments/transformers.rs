@@ -60,7 +60,6 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    //FIXME[#44]: why should response be filled during request
     let response = payment_data
         .payment_attempt
         .connector_transaction_id
@@ -163,7 +162,7 @@ where
         _server: &Server,
         _operation: Op,
     ) -> RouterResponse<Self> {
-        Ok(services::BachResponse::Json(Self {
+        Ok(services::ApplicationResponse::Json(Self {
             session_token: payment_data.sessions_token,
         }))
     }
@@ -183,7 +182,7 @@ where
         _server: &Server,
         _operation: Op,
     ) -> RouterResponse<Self> {
-        Ok(services::BachResponse::Json(Self {
+        Ok(services::ApplicationResponse::Json(Self {
             verify_id: Some(data.payment_intent.payment_id),
             merchant_id: Some(data.payment_intent.merchant_id),
             client_secret: data.payment_intent.client_secret.map(masking::Secret::new),
@@ -252,7 +251,7 @@ where
                 let redirection_data = redirection_data.get_required_value("redirection_data")?;
                 let form: RedirectForm = serde_json::from_value(redirection_data)
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-                services::BachResponse::Form(form)
+                services::ApplicationResponse::Form(form)
             } else {
                 let mut response: PaymentsResponse = request.into();
                 let mut next_action_response = None;
@@ -267,7 +266,7 @@ where
                     })
                 }
 
-                services::BachResponse::Json(
+                services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
@@ -336,7 +335,7 @@ where
                 )
             }
         }
-        None => services::BachResponse::Json(PaymentsResponse {
+        None => services::ApplicationResponse::Json(PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
             status: payment_intent.status.foreign_into(),

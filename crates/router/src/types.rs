@@ -189,6 +189,7 @@ pub struct RefundsData {
     pub payment_method_data: payments::PaymentMethod,
     pub connector_transaction_id: String,
     pub currency: storage_enums::Currency,
+    pub reason: Option<String>,
     /// Amount for the payment against which this refund is issued
     pub amount: i64,
     /// Amount to be refunded

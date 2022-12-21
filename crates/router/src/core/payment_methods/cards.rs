@@ -82,15 +82,15 @@ pub async fn add_payment_method(
                 metadata: req.metadata,
                 created: Some(common_utils::date_time::now()),
                 payment_method_issuer_code: req.payment_method_issuer_code,
-                recurring_enabled: false,           //TODO
-                installment_payment_enabled: false, //TODO
+                recurring_enabled: false,
+                installment_payment_enabled: false,
                 payment_experience: Some(vec![
                     api_models::payment_methods::PaymentExperience::RedirectToUrl,
-                ]), //TODO
+                ]),
             })
         }
     }
-    .map(services::BachResponse::Json)
+    .map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -137,7 +137,7 @@ pub async fn add_card(
     let locker = &state.conf.locker;
     let db = &*state.store;
     let request = payment_methods::mk_add_card_request(locker, &card, &customer_id, &req)?;
-    // FIXME use call_api 2. Serde's handle should be inside the generic function
+
     let response = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
@@ -269,7 +269,7 @@ pub async fn get_card_from_legacy_locker<'a>(
     let request = payment_methods::mk_get_card_request(locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making get card request failed")?;
-    // FIXME use call_api 2. Serde's handle should be inside the generic function
+
     let get_card_result = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
@@ -304,7 +304,6 @@ pub async fn delete_card<'a>(
     let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Making Delete card request Failed")?;
-    // FIXME use call_api 2. Serde's handle should be inside the generic function
     let delete_card_resp = if !locker.mock_locker {
         services::call_connector_api(state, request)
             .await
@@ -342,7 +341,6 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    // TODO: Deduplicate payment methods
     let mut response: Vec<api::ListPaymentMethodResponse> = Vec::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
@@ -352,10 +350,11 @@ pub async fn list_payment_methods(
 
         filter_payment_methods(payment_methods, &mut req, &mut response);
     }
+    response.dedup();
     response
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
-        .unwrap_or(Ok(services::BachResponse::Json(response)))
+        .unwrap_or(Ok(services::ApplicationResponse::Json(response)))
 }
 
 fn filter_payment_methods(
@@ -469,7 +468,6 @@ pub async fn list_customer_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    // TODO: Deduplicate payment methods
     let mut enabled_methods: Vec<api::ListPaymentMethodResponse> = Vec::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
@@ -485,6 +483,7 @@ pub async fn list_customer_payment_method(
             }
         }
     }
+    enabled_methods.dedup();
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
@@ -536,7 +535,7 @@ pub async fn list_customer_payment_method(
         customer_payment_methods: vec,
     };
 
-    Ok(services::BachResponse::Json(response))
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 pub async fn get_lookup_key_from_locker(
@@ -705,21 +704,25 @@ pub async fn retrieve_payment_method(
     } else {
         None
     };
-    Ok(services::BachResponse::Json(api::PaymentMethodResponse {
-        payment_method_id: pm.payment_method_id,
-        payment_method: pm.payment_method.foreign_into(),
-        payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
-        payment_method_issuer: pm.payment_method_issuer,
-        card,
-        metadata: pm.metadata,
-        created: Some(pm.created_at),
-        payment_method_issuer_code: pm.payment_method_issuer_code.map(ForeignInto::foreign_into),
-        recurring_enabled: false,           //TODO
-        installment_payment_enabled: false, //TODO
-        payment_experience: Some(vec![
-            api_models::payment_methods::PaymentExperience::RedirectToUrl,
-        ]), //TODO,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentMethodResponse {
+            payment_method_id: pm.payment_method_id,
+            payment_method: pm.payment_method.foreign_into(),
+            payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method_issuer: pm.payment_method_issuer,
+            card,
+            metadata: pm.metadata,
+            created: Some(pm.created_at),
+            payment_method_issuer_code: pm
+                .payment_method_issuer_code
+                .map(ForeignInto::foreign_into),
+            recurring_enabled: false,
+            installment_payment_enabled: false,
+            payment_experience: Some(vec![
+                api_models::payment_methods::PaymentExperience::RedirectToUrl,
+            ]),
+        },
+    ))
 }
 
 #[instrument(skip_all)]
@@ -748,7 +751,7 @@ pub async fn delete_payment_method(
         }
     };
 
-    Ok(services::BachResponse::Json(
+    Ok(services::ApplicationResponse::Json(
         api::DeletePaymentMethodResponse {
             payment_method_id: pm.payment_method_id,
             deleted: true,

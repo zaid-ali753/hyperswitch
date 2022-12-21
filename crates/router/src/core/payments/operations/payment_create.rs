@@ -512,11 +512,11 @@ pub fn payments_create_request_validation(
 ) -> RouterResult<(api::Amount, enums::Currency)> {
     let currency: enums::Currency = req
         .currency
-        .as_ref()
-        .parse_enum("currency")
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "invalid currency".to_string(),
-        })?;
+        .to_owned()
+        .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid Currency".to_string(),
+        })?
+        .foreign_into();
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
 }

@@ -7,13 +7,14 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations},
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payments::{self, helpers, operations, CustomerDetails, PaymentData},
     },
     db::StorageInterface,
+    pii,
     routes::AppState,
     types::{
-        api::{self, PaymentIdTypeExt, PaymentsCaptureRequest},
+        api::{self, enums as api_enums, PaymentIdTypeExt, PaymentsCaptureRequest},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -115,7 +116,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         )
         .await?;
 
-        // TODO: get payment method data for response
         Ok((
             Box::new(self),
             payments::PaymentData {
@@ -141,6 +141,71 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             },
             None,
         ))
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send> Domain<F, api::PaymentsCaptureRequest> for PaymentCapture {
+    #[instrument(skip_all)]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        db: &dyn StorageInterface,
+        payment_data: &mut PaymentData<F>,
+        request: Option<CustomerDetails>,
+        merchant_id: &str,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
+            Option<storage::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        helpers::create_customer_if_not_exist(
+            Box::new(self),
+            db,
+            payment_data,
+            request,
+            merchant_id,
+        )
+        .await
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        state: &'a AppState,
+        payment_method: Option<enums::PaymentMethodType>,
+        txn_id: &str,
+        payment_attempt: &storage::PaymentAttempt,
+        request: &Option<api::PaymentMethod>,
+        token: &Option<String>,
+        card_cvc: Option<pii::Secret<String>>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
+        Option<api::PaymentMethod>,
+        Option<String>,
+    )> {
+        helpers::make_pm_data(
+            Box::new(self),
+            state,
+            payment_method,
+            txn_id,
+            payment_attempt,
+            request,
+            token,
+            card_cvc,
+        )
+        .await
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        merchant_account: &storage::MerchantAccount,
+        state: &AppState,
+        request_connector: Option<api_enums::Connector>,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(merchant_account, state, request_connector).await
     }
 }
 

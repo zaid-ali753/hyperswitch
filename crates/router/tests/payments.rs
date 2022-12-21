@@ -290,7 +290,7 @@ async fn payments_create_core() {
         merchant_id: Some("jarnura".to_string()),
         amount: Some(6540.into()),
         connector: None,
-        currency: Some("USD".to_string()),
+        currency: Some(api_enums::Currency::USD),
         capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),
         capture_on: Some(datetime!(2022-09-10 11:12)),
@@ -347,7 +347,7 @@ async fn payments_create_core() {
         mandate_id: None,
         ..Default::default()
     };
-    let expected_response = services::BachResponse::Json(expected_response);
+    let expected_response = services::ApplicationResponse::Json(expected_response);
     let actual_response =
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
@@ -406,7 +406,7 @@ async fn payments_create_core() {
 //         .update(&state.pg_conn, payment_intent_update)
 //         .unwrap();
 
-//     let expected_response = services::BachResponse::Form(services::RedirectForm {
+//     let expected_response = services::ApplicationResponse::Form(services::RedirectForm {
 //         url: "http://example.com/payments".to_string(),
 //         method: services::Method::Post,
 //         form_fields: HashMap::from([("payment_id".to_string(), payment_id.clone())]),
@@ -449,7 +449,7 @@ async fn payments_create_core_adyen_no_redirect() {
         merchant_id: Some(merchant_id.clone()),
         amount: Some(6540.into()),
         connector: None,
-        currency: Some("USD".to_string()),
+        currency: Some(api_enums::Currency::USD),
         capture_method: Some(api_enums::CaptureMethod::Automatic),
         amount_to_capture: Some(6540),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
@@ -491,7 +491,7 @@ async fn payments_create_core_adyen_no_redirect() {
         browser_info: None,
     };
 
-    let expected_response = services::BachResponse::Json(api::PaymentsResponse {
+    let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {
         payment_id: Some(payment_id.clone()),
         status: api_enums::IntentStatus::Processing,
         amount: 6540,

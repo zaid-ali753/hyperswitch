@@ -59,7 +59,7 @@ async fn payments_incoming_webhook_flow(
     .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
     match payments_response {
-        services::BachResponse::Json(payments_response) => {
+        services::ApplicationResponse::Json(payments_response) => {
             let payment_id = payments_response
                 .payment_id
                 .clone()
@@ -174,14 +174,12 @@ async fn trigger_webhook_to_merchant(
 
     match response {
         Err(e) => {
-            // TODO: Schedule webhook for retry.
             Err(e)
                 .into_report()
                 .change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
         }
         Ok(res) => {
             if !res.status().is_success() {
-                // TODO: Schedule webhook for retry.
                 Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
             }
         }

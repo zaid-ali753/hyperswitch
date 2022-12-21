@@ -164,7 +164,7 @@ fn set_or_reject_duplicate<T, E: de::Error>(
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ListPaymentMethodResponse {
     pub payment_method: api_enums::PaymentMethodType,
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
@@ -209,7 +209,7 @@ pub struct CustomerPaymentMethod {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum PaymentExperience {

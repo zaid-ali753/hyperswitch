@@ -50,7 +50,7 @@ pub async fn create_customer(
         }
     };
 
-    Ok(services::BachResponse::Json(customer.into()))
+    Ok(services::ApplicationResponse::Json(customer.into()))
 }
 
 #[instrument(skip(db))]
@@ -64,7 +64,7 @@ pub async fn retrieve_customer(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
-    Ok(services::BachResponse::Json(response.into()))
+    Ok(services::ApplicationResponse::Json(response.into()))
 }
 
 #[instrument(skip_all)]
@@ -160,7 +160,7 @@ pub async fn delete_customer(
         address_deleted: true,
         payment_methods_deleted: true,
     };
-    Ok(services::BachResponse::Json(response))
+    Ok(services::ApplicationResponse::Json(response))
 }
 
 #[instrument(skip(db))]
@@ -187,5 +187,5 @@ pub async fn update_customer(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
-    Ok(services::BachResponse::Json(response.into()))
+    Ok(services::ApplicationResponse::Json(response.into()))
 }
