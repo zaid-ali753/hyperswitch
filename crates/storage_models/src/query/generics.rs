@@ -8,8 +8,8 @@ use diesel::{
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},
     query_builder::{
-        AsChangeset, AsQuery, DeleteStatement, InsertStatement, IntoUpdateTarget,
-        QueryFragment, QueryId, UpdateStatement,
+        AsChangeset, AsQuery, DeleteStatement, InsertStatement, IntoUpdateTarget, QueryFragment,
+        QueryId, UpdateStatement,
     },
     query_dsl::{
         methods::{FilterDsl, FindDsl, LimitDsl, OrderDsl},
