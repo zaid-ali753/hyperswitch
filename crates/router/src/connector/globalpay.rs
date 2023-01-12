@@ -2,10 +2,10 @@ mod requests;
 mod response;
 mod transformers;
 
-use common_utils::{self, crypto::GenerateDigest};
 use std::fmt::Debug;
 
 use bytes::Bytes;
+use common_utils::{self, crypto::GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
 
 use self::{
