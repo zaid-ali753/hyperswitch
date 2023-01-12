@@ -361,7 +361,7 @@ where
 }
 
 #[instrument(level = "DEBUG", skip_all)]
-pub(super) async fn generic_filter_abc<T, P, R, Expr>(
+pub(super) async fn generic_filter_order<T, P, R, Expr>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,
@@ -370,38 +370,26 @@ pub(super) async fn generic_filter_abc<T, P, R, Expr>(
 where
     Expr: diesel::Expression,
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Clone,
-    <T as FilterDsl<P>>::Output: LimitDsl + Send + 'static,
-    <T as FilterDsl<P>>::Output: OrderDsl<Expr> + Send + 'static,
+    <T as FilterDsl<P>>::Output: LimitDsl + OrderDsl<Expr> + Send + 'static,
     <<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output: Table,
-    <<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query: LimitDsl + Send + 'static + RunQueryDsl<PgConnection>,
-    <<<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output: diesel::query_builder::Query + QueryFragment<Pg> + QueryId + Clone + 'static + Send + RunQueryDsl<PgConnection>,
-    <<T as FilterDsl<P>>::Output as LimitDsl>::Output:
-        LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    <<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query: LimitDsl + Send + 'static,
+    <<<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output: diesel::query_builder::Query + QueryFragment<Pg> + QueryId + RunQueryDsl<PgConnection> + Send + 'static,
     <<<<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output as diesel::query_builder::Query>::SqlType: SingleValue,
     Pg: HasSqlType<<<<<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output as diesel::query_builder::Query>::SqlType>,
-
-    R: Queryable<<<<<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output as diesel::query_builder::Query>::SqlType, Pg>,
-    R: Send + 'static,
+    R: Queryable<<<<<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output as diesel::query_builder::Query>::SqlType, Pg> + Send + 'static,
 {
-    let query = <T as HasTable>::table().filter(predicate);
+    let query = <T as HasTable>::table()
+        .filter(predicate)
+        .order(expr)
+        .limit(limit.unwrap_or(100));
 
-    match limit {
-        None => {
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            query.clone().get_results_async(conn)
-        }
-        Some(limit) => {
-            let query = query.order(expr).limit(limit);
-            let a = query.clone().get_results_async(conn);
-            logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-            a
-        }
-    }
-    .await
-    .into_report()
-    .change_context(errors::DatabaseError::NotFound)
-    .attach_printable_lazy(|| "Error filtering records by predicate")
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+    query
+        .get_results_async(conn)
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
