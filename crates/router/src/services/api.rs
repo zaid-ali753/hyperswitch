@@ -46,7 +46,11 @@ where
 }
 
 pub trait AccessTokenRefresh {
-    fn build_refresh_token_request(&self) -> CustomResult<Option<Request>, errors::ConnectorError> {
+    fn build_refresh_token_request(
+        &self,
+        _connector_auth: &types::ConnectorAuthType,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(None)
     }
     fn handle_response_token(
@@ -591,11 +595,15 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
 pub async fn refresh_connector_access_token(
     state: &AppState,
     connector: api::ConnectorData,
+    connector_auth_details: &types::ConnectorAuthType,
 ) -> CustomResult<api_models::payments::AccessToken, errors::ConnectorError> {
     let boxed_connector = connector.connector;
     let request = boxed_connector
-        .build_refresh_token_request()
-        .map_err(|_error| errors::ConnectorError::AccessTokenRefreshRequestBuildFailed)?;
+        .build_refresh_token_request(connector_auth_details, &state.conf.connectors)
+        .map_err(|_error| {
+            logger::debug!(access_token_refresh_error=?_error);
+            errors::ConnectorError::AccessTokenRefreshRequestBuildFailed
+        })?;
 
     match request {
         Some(request) => {

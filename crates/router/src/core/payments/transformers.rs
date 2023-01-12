@@ -54,7 +54,7 @@ where
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let auth_type = if let types::ConnectorAuthType::AccessToken { api_key, id, .. } = auth_type {
+    let auth_type = if let types::ConnectorAuthType::AccessToken { api_key, id, .. } = &auth_type {
         let db = &*state.store;
         let access_token = db
             .get_access_token(&merchant_account.merchant_id, connector_id)
@@ -64,7 +64,7 @@ where
         let token = match access_token {
             Some(token) => token,
             None => {
-                let new_access_token = refresh_connector_access_token(state, connector)
+                let new_access_token = refresh_connector_access_token(state, connector, &auth_type)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to refresh access token")?;
@@ -82,8 +82,8 @@ where
         };
 
         types::ConnectorAuthType::AccessToken {
-            api_key,
-            id,
+            api_key: api_key.clone(),
+            id: id.clone(),
             access_token: Some(token),
         }
     } else {

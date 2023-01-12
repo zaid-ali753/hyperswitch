@@ -1,3 +1,4 @@
+use api_models::payments::AccessToken;
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -75,12 +76,40 @@ pub struct GlobalpayAuthType {
     pub api_key: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct GlobalpayRefreshTokenBody {
+    pub app_id: String,
+    pub nonce: String,
+    pub secret: String,
+    pub grant_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayRefreshTokenResponse {
+    token: String,
+    seconds_to_expire: i64,
+}
+
+impl TryFrom<GlobalpayRefreshTokenResponse> for AccessToken {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(item: GlobalpayRefreshTokenResponse) -> Result<Self, Self::Error> {
+        Ok(Self {
+            token: item.token,
+            expires: item.seconds_to_expire,
+        })
+    }
+}
+
 impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+            types::ConnectorAuthType::AccessToken { access_token, .. } => Ok(Self {
+                api_key: access_token
+                    .clone()
+                    .ok_or_else(|| errors::ConnectorError::FailedToObtainAuthType.into())
+                    .attach_printable("access token missing")?,
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

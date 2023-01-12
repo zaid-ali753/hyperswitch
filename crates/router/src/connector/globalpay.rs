@@ -2,6 +2,7 @@ mod requests;
 mod response;
 mod transformers;
 
+use common_utils::{self, crypto::GenerateDigest};
 use std::fmt::Debug;
 
 use bytes::Bytes;
@@ -92,7 +93,84 @@ impl ConnectorCommon for Globalpay {
 }
 
 impl api::Payment for Globalpay {}
-impl services::AccessTokenRefresh for Globalpay {}
+impl services::AccessTokenRefresh for Globalpay {
+    fn build_refresh_token_request(
+        &self,
+        auth_details: &types::ConnectorAuthType,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        match auth_details {
+            types::ConnectorAuthType::AccessToken { api_key, id, .. } => {
+                let current_time = common_utils::date_time::now().to_string();
+                let nonce_with_api_key = format!("{}{}", current_time, id);
+                let secret = common_utils::crypto::Sha512
+                    .generate_digest(nonce_with_api_key.as_bytes())
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)
+                    .attach_printable("error creating request nonce")?;
+
+                let secret = hex::encode(secret);
+
+                logger::debug!(current_time=?current_time);
+                let body = transformers::GlobalpayRefreshTokenBody {
+                    app_id: api_key.to_string(),
+                    nonce: current_time,
+                    secret,
+                    grant_type: "client_credentials".to_string(),
+                };
+
+                let headers = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        "application/json".to_string(),
+                    ),
+                    ("X-GP-Version".to_string(), "2021-03-22".to_string()),
+                ];
+
+                let parsed_body =
+            utils::Encode::<transformers::GlobalpayRefreshTokenBody>::encode_to_string_of_json(
+                &body,
+            )
+            .unwrap_or_default();
+                logger::debug!(globalpay_accesstoken_request=?parsed_body);
+
+                let url = format!("{}{}", self.base_url(connectors), "accesstoken");
+
+                Ok(Some(
+                    services::RequestBuilder::new()
+                        .method(services::Method::Post)
+                        .url(&url)
+                        .headers(headers)
+                        .body(Some(parsed_body))
+                        .build(),
+                ))
+            }
+            _ => Err(errors::ConnectorError::AccessTokenRefreshRequestBuildFailed.into()),
+        }
+    }
+
+    fn handle_response_token(
+        &self,
+        response: Response,
+    ) -> CustomResult<api_models::payments::AccessToken, errors::ConnectorError> {
+        logger::debug!(access_token_response=?response);
+        let parsed_response: transformers::GlobalpayRefreshTokenResponse = response
+            .response
+            .parse_struct("Globalpay RefreshTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(access_token_parsed_response=?parsed_response);
+        parsed_response
+            .try_into()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+    }
+
+    fn get_refresh_access_token_error(
+        &self,
+        response: Bytes,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(access_token_error_response=?response);
+        Ok(ErrorResponse::default())
+    }
+}
 
 impl api::PreVerify for Globalpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
