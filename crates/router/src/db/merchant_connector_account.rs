@@ -36,9 +36,9 @@ impl ConnectorAccessToken for Store {
         // This function should acquire a global lock on some resource, if access token is already
         // being refreshed by other request then wait till it finishes and use the same access token
         let key = format!("{}{}", merchant_id, connector);
-        let token = self.redis_conn.get_key::<String>(&key).await;
+        let token = self.redis_conn.get_key::<Option<String>>(&key).await;
         match token {
-            Ok(token) => Ok(Some(token)),
+            Ok(token) => Ok(token),
             Err(error) => {
                 logger::error!(access_token_kv_error=?error);
                 Err(errors::StorageError::KVError).into_report()
