@@ -61,6 +61,22 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
+    pub async fn find_latest_by_payment_id_merchant_id(
+        conn: &PgPooledConn,
+        payment_id: &str,
+        merchant_id: &str,
+        created_at: time::PrimitiveDateTime,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payment_id.eq(payment_id.to_owned())),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
