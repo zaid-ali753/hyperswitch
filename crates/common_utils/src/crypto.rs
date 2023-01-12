@@ -1,6 +1,6 @@
 //! Utilities for cryptographic algorithms
 use error_stack::{IntoReport, ResultExt};
-use ring::{aead, hmac};
+use ring::{self, aead, hmac};
 
 use crate::errors::{self, CustomResult};
 
@@ -212,6 +212,23 @@ impl DecodeMessage for GcmAes256 {
             .attach_printable(RING_ERR_UNSPECIFIED)?;
 
         Ok(output.to_vec())
+    }
+}
+
+/// Secure Hash Algorithm 512
+#[derive(Debug)]
+pub struct Sha512;
+
+/// Trait for generating a digest for SHA
+pub trait GenerateDigest {
+    /// takes a message and creates a digest for it
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError>;
+}
+
+impl GenerateDigest for Sha512 {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let digest = ring::digest::digest(&ring::digest::SHA512, message);
+        Ok(digest.as_ref().to_vec())
     }
 }
 
