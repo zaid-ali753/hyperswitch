@@ -389,7 +389,7 @@ where
         .await
         .into_report()
         .change_context(errors::DatabaseError::NotFound)
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        .attach_printable_lazy(|| "Error filtering records by predicate and order")
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {
