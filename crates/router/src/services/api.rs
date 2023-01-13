@@ -596,7 +596,8 @@ pub async fn refresh_connector_access_token(
     state: &AppState,
     connector: api::ConnectorData,
     connector_auth_details: &types::ConnectorAuthType,
-) -> CustomResult<api_models::payments::AccessToken, errors::ConnectorError> {
+) -> CustomResult<Result<api_models::payments::AccessToken, ErrorResponse>, errors::ConnectorError>
+{
     let boxed_connector = connector.connector;
     let request = boxed_connector
         .build_refresh_token_request(connector_auth_details, &state.conf.connectors)
@@ -614,13 +615,13 @@ pub async fn refresh_connector_access_token(
             match response {
                 Ok(body) => {
                     logger::debug!(access_token_refresh_raw_response=?body);
-                    Ok(boxed_connector.handle_response_token(body)?)
+                    let access_token = boxed_connector.handle_response_token(body)?;
+                    Ok(Ok(access_token))
                 }
                 Err(error) => {
                     let connector_error =
-                        boxed_connector.get_refresh_access_token_error(error.response);
-                    logger::error!(access_token_refresh_error=?connector_error);
-                    Err(errors::ConnectorError::AccessTokenRefreshFailed).into_report()
+                        boxed_connector.get_refresh_access_token_error(error.response)?;
+                    Ok(Err(connector_error))
                 }
             }
         }
@@ -628,6 +629,63 @@ pub async fn refresh_connector_access_token(
     }
 }
 
+pub async fn update_auth_type(
+    state: &AppState,
+    connector: api::ConnectorData,
+    connector_auth_details: &types::ConnectorAuthType,
+    merchant_id: &String,
+) -> CustomResult<Result<types::ConnectorAuthType, ErrorResponse>, errors::ApiErrorResponse> {
+    if let types::ConnectorAuthType::AccessToken { api_key, id, .. } =
+        connector_auth_details.clone()
+    {
+        let db = &*state.store;
+        let access_token = db
+            .get_access_token(merchant_id, connector.connector.id())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        Ok(match access_token {
+            Some(token) => Ok(types::ConnectorAuthType::AccessToken {
+                api_key,
+                id,
+                access_token: Some(token),
+            }),
+            None => {
+                let new_access_token_result = refresh_connector_access_token(
+                    state,
+                    connector.clone(),
+                    &connector_auth_details,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to refresh access token")?;
+                match new_access_token_result {
+                    Ok(access_token) => {
+                        db.set_access_token(
+                            merchant_id,
+                            &connector.connector_name.to_string(),
+                            access_token.clone(),
+                        )
+                        .await
+                        .map_err(|error| {
+                            logger::error!(set_access_token_error=?error);
+                            errors::ApiErrorResponse::InternalServerError
+                        })?;
+
+                        Ok(types::ConnectorAuthType::AccessToken {
+                            api_key,
+                            id,
+                            access_token: Some(access_token.token),
+                        })
+                    }
+                    Err(error_response) => Err(error_response),
+                }
+            }
+        })
+    } else {
+        Ok(Ok(connector_auth_details.clone()))
+    }
+}
 #[cfg(test)]
 mod tests {
     #[test]

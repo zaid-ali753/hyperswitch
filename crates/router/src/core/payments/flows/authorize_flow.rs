@@ -10,7 +10,7 @@ use crate::{
     routes::AppState,
     scheduler::metrics,
     services,
-    types::{self, api, storage},
+    types::{self, api, storage, ConnectorAuthType},
 };
 
 #[async_trait]
@@ -88,6 +88,7 @@ impl types::PaymentsAuthorizeRouterData {
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
+
                 let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,

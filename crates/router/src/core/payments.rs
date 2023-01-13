@@ -311,18 +311,35 @@ where
         .construct_router_data(state, connector.clone(), merchant_account)
         .await?;
 
-    let res = router_data
-        .decide_flows(
-            state,
-            &connector,
-            customer,
-            call_connector_action,
-            merchant_account,
-        )
-        .await;
+    let result = match router_data.response.clone() {
+        Ok(_) => {
+            let res = router_data
+                .decide_flows(
+                    state,
+                    &connector,
+                    customer,
+                    call_connector_action,
+                    merchant_account,
+                )
+                .await;
 
-    let response = res
-        .async_and_then(|response| async {
+            res.async_and_then(|response| async {
+                let operation = helpers::response_operation::<F, Req>();
+                let payment_data = operation
+                    .to_post_update_tracker()?
+                    .update_tracker(
+                        db,
+                        payment_id,
+                        payment_data,
+                        response,
+                        merchant_account.storage_scheme,
+                    )
+                    .await?;
+                Ok(payment_data)
+            })
+            .await
+        }
+        Err(auth_error) => {
             let operation = helpers::response_operation::<F, Req>();
             let payment_data = operation
                 .to_post_update_tracker()?
@@ -330,19 +347,19 @@ where
                     db,
                     payment_id,
                     payment_data,
-                    response,
+                    router_data,
                     merchant_account.storage_scheme,
                 )
                 .await?;
             Ok(payment_data)
-        })
-        .await?;
+        }
+    };
 
     let etime_connector = Instant::now();
     let duration_connector = etime_connector.saturating_duration_since(stime_connector);
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
-    Ok(response)
+    result
 }
 
 pub async fn call_multiple_connectors_service<F, Op, Req>(

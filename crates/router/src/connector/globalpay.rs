@@ -73,6 +73,7 @@ impl ConnectorCommon for Globalpay {
         let auth: globalpay::GlobalpayAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        logger::debug!(hola_token=?auth.api_key);
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
 
@@ -102,7 +103,7 @@ impl services::AccessTokenRefresh for Globalpay {
         match auth_details {
             types::ConnectorAuthType::AccessToken { api_key, id, .. } => {
                 let current_time = common_utils::date_time::now().to_string();
-                let nonce_with_api_key = format!("{}{}", current_time, id);
+                let nonce_with_api_key = format!("{}{}", current_time, "hola");
                 let secret = common_utils::crypto::Sha512
                     .generate_digest(nonce_with_api_key.as_bytes())
                     .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -168,7 +169,11 @@ impl services::AccessTokenRefresh for Globalpay {
         response: Bytes,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(access_token_error_response=?response);
-        Ok(ErrorResponse::default())
+        let parsed_error_response: transformers::GlobalpayRefreshTokenErrorResponse = response
+            .parse_struct("Globalpay RefreshTokenErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(parsed_error_response.into())
     }
 }
 

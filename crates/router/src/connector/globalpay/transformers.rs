@@ -9,6 +9,7 @@ use super::{
 use crate::{
     connector::utils::{self, CardData, PaymentsRequestData},
     core::errors,
+    logger,
     types::{self, api, storage::enums},
     utils::OptionExt,
 };
@@ -90,6 +91,22 @@ pub struct GlobalpayRefreshTokenResponse {
     seconds_to_expire: i64,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayRefreshTokenErrorResponse {
+    error_code: String,
+    detailed_error_description: String,
+}
+
+impl From<GlobalpayRefreshTokenErrorResponse> for types::ErrorResponse {
+    fn from(item: GlobalpayRefreshTokenErrorResponse) -> Self {
+        Self {
+            code: item.error_code,
+            message: item.detailed_error_description,
+            reason: None,
+        }
+    }
+}
+
 impl TryFrom<GlobalpayRefreshTokenResponse> for AccessToken {
     type Error = error_stack::Report<errors::ParsingError>;
 
@@ -105,12 +122,14 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::AccessToken { access_token, .. } => Ok(Self {
-                api_key: access_token
+            types::ConnectorAuthType::AccessToken { access_token, .. } => {
+                let access_token = access_token
                     .clone()
                     .ok_or_else(|| errors::ConnectorError::FailedToObtainAuthType.into())
-                    .attach_printable("access token missing")?,
-            }),
+                    .attach_printable("access token missing")?;
+                let api_key = format!("{} {}", "Bearer", access_token);
+                Ok(Self { api_key })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }

@@ -12,7 +12,7 @@ use crate::{
     },
     logger,
     routes::AppState,
-    services::{self, refresh_connector_access_token, RedirectForm},
+    services::{self, RedirectForm},
     types::{
         self, api,
         storage::{self, enums},
@@ -54,41 +54,13 @@ where
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let auth_type = if let types::ConnectorAuthType::AccessToken { api_key, id, .. } = &auth_type {
-        let db = &*state.store;
-        let access_token = db
-            .get_access_token(&merchant_account.merchant_id, connector_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        let token = match access_token {
-            Some(token) => token,
-            None => {
-                let new_access_token = refresh_connector_access_token(state, connector, &auth_type)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to refresh access token")?;
-                let db = &*state.store;
-                let merchant_id = &merchant_account.merchant_id;
-
-                db.set_access_token(merchant_id, &connector_name, new_access_token.clone())
-                    .await
-                    .map_err(|error| {
-                        logger::error!(set_access_token_error=?error);
-                        errors::ApiErrorResponse::InternalServerError
-                    })?;
-                new_access_token.token
-            }
-        };
-
-        types::ConnectorAuthType::AccessToken {
-            api_key: api_key.clone(),
-            id: id.clone(),
-            access_token: Some(token),
-        }
-    } else {
-        auth_type
-    };
+    let auth_type = services::update_auth_type(
+        state,
+        connector,
+        &auth_type.clone(),
+        &merchant_account.merchant_id,
+    )
+    .await?;
 
     payment_method = payment_data
         .payment_attempt
@@ -123,7 +95,7 @@ where
         attempt_id: Some(payment_data.payment_attempt.attempt_id.clone()),
         status: payment_data.payment_attempt.status,
         payment_method,
-        connector_auth_type: auth_type,
+        connector_auth_type: auth_type.clone().unwrap_or_default(),
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
         router_return_url,
@@ -135,7 +107,8 @@ where
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.metadata,
         request: T::try_from(payment_data.clone())?,
-        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
+        // response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
+        response: Err(auth_type.clone().err().unwrap()),
         amount_captured: payment_data.payment_intent.amount_captured,
     };
 
