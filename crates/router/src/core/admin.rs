@@ -1,4 +1,6 @@
+use api_models::enums::RoutingAlgorithm;
 use error_stack::{report, FutureExt, ResultExt};
+use frunk::labelled::IntoLabelledGeneric;
 use uuid::Uuid;
 
 use crate::{
@@ -10,7 +12,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, MerchantAccount},
-        transformers::{ForeignInto, ForeignTryInto},
+        transformers::{ForeignInto, ForeignTryInto, Foreign},
     },
     utils::{self, OptionExt, ValueExt},
 };
@@ -140,7 +142,7 @@ pub async fn merchant_account_update(
     db: &dyn StorageInterface,
     merchant_id: &String,
     req: api::CreateMerchantAccount,
-) -> RouterResponse<api::MerchantAccountResponse> {
+) -> RouterResponse<api::MerchantResponse> {
     let merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -158,7 +160,7 @@ pub async fn merchant_account_update(
             field_name: "parent_merchant_id",
         }))?;
     }
-    let mut response = req.clone();
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_id: merchant_id.to_string(),
         merchant_name: req
@@ -224,19 +226,11 @@ pub async fn merchant_account_update(
         locker_id: req
             .locker_id
             .or_else(|| merchant_account.locker_id.to_owned()),
-        metadata: if req.metadata.is_some() {
-            Some(
-                utils::Encode::<api::MerchantDetails>::encode_to_value(&req.metadata)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            )
-        } else {
-            merchant_account.metadata.to_owned()
-        },
+        metadata: req.metadata.or(merchant_account.metadata.to_owned()),
     };
-    response.merchant_id = merchant_id.to_string();
-    response.api_key = merchant_account.api_key.to_owned();
 
-    db.update_merchant(merchant_account, updated_merchant_account)
+    let response = db
+        .update_merchant(merchant_account, updated_merchant_account)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     Ok(service_api::BachResponse::Json(response))
@@ -505,3 +499,35 @@ pub async fn delete_payment_connector(
     };
     Ok(service_api::BachResponse::Json(response))
 }
+
+//from trait to merchant_account_update for merchant_response
+impl
+    types::transformers::ForeignFrom<
+        types::transformers::Foreign<storage_models::merchant_account::MerchantAccount>,
+    > for api::MerchantResponse
+{
+    fn foreign_from(
+        item: types::transformers::Foreign<storage_models::merchant_account::MerchantAccount>,
+    ) -> Self {
+        let mau = item.0;
+        Self {
+            merchant_id: mau.merchant_id,
+            api_key: mau.api_key,
+            return_url: mau.return_url,
+            enable_payment_response_hash: mau.enable_payment_response_hash,
+            payment_response_hash_key: mau.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: mau.redirect_to_merchant_with_http_post,
+            merchant_name: mau.merchant_name,
+            merchant_details: mau.merchant_details,
+            webhook_details: mau.webhook_details,
+            routing_algorithm: mau.routing_algorithm.map(|a: storage_models::enums::RoutingAlgorithm| <api_models::enums::RoutingAlgorithm>::into(a)),
+            custom_routing_rules: mau.custom_routing_rules,
+            sub_merchants_enabled: mau.sub_merchants_enabled,
+            parent_merchant_id: mau.parent_merchant_id,
+            publishable_key: mau.publishable_key,
+            locker_id: mau.locker_id,
+            metadata: mau.metadata,
+        }
+    }
+}
+

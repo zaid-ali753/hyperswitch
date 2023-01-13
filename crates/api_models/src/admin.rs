@@ -257,3 +257,22 @@ pub struct DeleteMcaResponse {
     pub merchant_connector_id: i32,
     pub deleted: bool,
 }
+
+pub struct MerchantResponse {
+    pub merchant_id: String,
+    pub api_key: Option<StrongSecret<String>>,
+    pub return_url: Option<String>,
+    pub enable_payment_response_hash: bool,
+    pub payment_response_hash_key: Option<String>,
+    pub redirect_to_merchant_with_http_post: bool,
+    pub merchant_name: Option<String>,
+    pub merchant_details: Option<serde_json::Value>,
+    pub webhook_details: Option<serde_json::Value>,
+    pub routing_algorithm: Option<api_enums::RoutingAlgorithm>,
+    pub custom_routing_rules: Option<serde_json::Value>,
+    pub sub_merchants_enabled: Option<bool>,
+    pub parent_merchant_id: Option<String>,
+    pub publishable_key: Option<String>,
+    pub locker_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
+}

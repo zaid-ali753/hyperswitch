@@ -48,7 +48,7 @@ pub struct MerchantAccountNew {
 }
 
 #[derive(Debug)]
-pub enum MerchantAccountUpdate {
+pub enum fMerchantAccountUpdate {
     Update {
         merchant_id: String,
         merchant_name: Option<String>,
