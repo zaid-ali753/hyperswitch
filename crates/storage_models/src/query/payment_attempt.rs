@@ -1,5 +1,6 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use error_stack::IntoReport;
+use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -65,15 +66,32 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_id: &str,
         merchant_id: &str,
-        created_at: time::PrimitiveDateTime,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::payment_id.eq(payment_id.to_owned())),
-        )
-        .await
+    ) -> StorageResult<Vec<Self>> {
+        let y: StorageResult<Vec<Self>> =
+            generics::generic_filter_order::<<Self as HasTable>::Table, _, _, _>(
+                conn,
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::payment_id.eq(payment_id.to_owned())),
+                Some(1),
+                dsl::created_at.desc(),
+            )
+            .await;
+
+        <Self as HasTable>::table()
+            .filter(
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::payment_id.eq(payment_id.to_owned())),
+            )
+            .order(dsl::created_at.desc())
+            .limit(1)
+            .into_boxed()
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::NotFound)
+            .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
     #[instrument(skip(conn))]
