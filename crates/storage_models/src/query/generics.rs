@@ -8,16 +8,15 @@ use diesel::{
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},
     query_builder::{
-        AsChangeset, AsQuery, DebugQuery, DeleteStatement, InsertStatement, IntoUpdateTarget,
-        Query, QueryFragment, QueryId, UpdateStatement,
+        AsChangeset, AsQuery, DeleteStatement, InsertStatement, IntoUpdateTarget, QueryFragment,
+        QueryId, UpdateStatement,
     },
     query_dsl::{
         methods::{FilterDsl, FindDsl, LimitDsl, OrderDsl},
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
-    sql_types::{HasSqlType, SingleValue},
-    Insertable, QuerySource, Queryable, Table,
+    Insertable, QuerySource, Table,
 };
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing};
@@ -362,18 +361,10 @@ pub(super) async fn generic_filter_order<T, P, R, Expr>(
 where
     Expr: diesel::Expression,
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    <T as FilterDsl<P>>::Output:
-        Table + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + LimitDsl + Send + 'static,
-    <<T as FilterDsl<P>>::Output as LimitDsl>::Output:
+    <T as FilterDsl<P>>::Output: OrderDsl<Expr> + Send + 'static,
+    <<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output: LimitDsl + Send + 'static,
+    <<<T as FilterDsl<P>>::Output as OrderDsl<Expr>>::Output as LimitDsl>::Output:
         LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
-    <<T as FilterDsl<P>>::Output as AsQuery>::Query: OrderDsl<Expr>,
-    <<<T as FilterDsl<P>>::Output as AsQuery>::Query as OrderDsl<Expr>>::Output: Table,
-    <<<<T as FilterDsl<P>>::Output as AsQuery>::Query as OrderDsl<Expr>>::Output as AsQuery>::Query: LimitDsl,
-    DebugQuery<'static, <<<<<T as FilterDsl<P>>::Output as AsQuery>::Query as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output, Pg>: std::fmt::Display,
-    <<<<<T as FilterDsl<P>>::Output as AsQuery>::Query as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output:  QueryId + QueryFragment<Pg> + Query + RunQueryDsl<PgConnection> + Send + 'static,
-    <<<<<<T as FilterDsl<P>>::Output as AsQuery>::Query as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output as diesel::query_builder::Query>::SqlType: SingleValue,
-    Pg: HasSqlType<<<<<<<T as FilterDsl<P>>::Output as AsQuery>::Query as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output as diesel::query_builder::Query>::SqlType>,
-    R: Queryable<<<<<<<T as FilterDsl<P>>::Output as AsQuery>::Query as OrderDsl<Expr>>::Output as AsQuery>::Query as LimitDsl>::Output as diesel::query_builder::Query>::SqlType, Pg>,
     R: Send + 'static,
 {
     let query = <T as HasTable>::table()

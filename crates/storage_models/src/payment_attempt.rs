@@ -1,4 +1,4 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable, SqlType};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
