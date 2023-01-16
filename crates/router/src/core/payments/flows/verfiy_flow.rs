@@ -35,7 +35,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
 #[async_trait]
 impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData {
     async fn decide_flows<'a>(
-        self,
+        &'a self,
         state: &AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
@@ -51,6 +51,17 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             merchant_account,
         )
         .await
+    }
+
+    async fn update_auth<'a>(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(())
     }
 }
 

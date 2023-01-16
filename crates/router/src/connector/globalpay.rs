@@ -103,7 +103,7 @@ impl services::AccessTokenRefresh for Globalpay {
         match auth_details {
             types::ConnectorAuthType::AccessToken { api_key, id, .. } => {
                 let current_time = common_utils::date_time::now().to_string();
-                let nonce_with_api_key = format!("{}{}", current_time, "hola");
+                let nonce_with_api_key = format!("{}{}", current_time, id);
                 let secret = common_utils::crypto::Sha512
                     .generate_digest(nonce_with_api_key.as_bytes())
                     .change_context(errors::ConnectorError::RequestEncodingFailed)

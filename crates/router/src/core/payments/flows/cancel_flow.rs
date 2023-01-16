@@ -36,7 +36,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
     for types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
-        self,
+        &'a self,
         state: &AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
@@ -51,6 +51,17 @@ impl Feature<api::Void, types::PaymentsCancelData>
             call_connector_action,
         )
         .await
+    }
+
+    async fn update_auth<'a>(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(())
     }
 }
 

@@ -37,7 +37,7 @@ impl
 #[async_trait]
 impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessionRouterData {
     async fn decide_flows<'a>(
-        self,
+        &'a self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
@@ -52,6 +52,17 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             call_connector_action,
         )
         .await
+    }
+
+    async fn update_auth<'a>(
+        &mut self,
+        state: &routes::AppState,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(())
     }
 }
 

@@ -7,6 +7,7 @@ use crate::{
         mandate,
         payments::{self, transformers, PaymentData},
     },
+    logger,
     routes::AppState,
     scheduler::metrics,
     services,
@@ -46,7 +47,7 @@ impl
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
-        self,
+        &'a self,
         state: &AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
@@ -67,6 +68,30 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
         resp
+    }
+
+    async fn update_auth<'a>(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()> {
+        let access_token_result = services::update_auth_type(
+            state,
+            connector.clone(),
+            &self.connector_auth_type,
+            &merchant_account.merchant_id,
+        )
+        .await?;
+
+        match access_token_result.clone() {
+            Ok(access_token) => self.connector_auth_type = access_token,
+            Err(connector_error_response) => self.response = Err(connector_error_response),
+        }
+        logger::debug!(refresh_token_result=?access_token_result);
+        Ok(())
     }
 }
 

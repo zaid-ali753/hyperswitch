@@ -27,13 +27,26 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[async_trait]
 pub trait Feature<F, T> {
     async fn decide_flows<'a>(
-        self,
+        &'a self,
         state: &AppState,
         connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self>
+    where
+        Self: Sized,
+        F: Clone,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn update_auth<'a>(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        maybe_customer: &Option<storage::Customer>,
+        call_connector_action: payments::CallConnectorAction,
+        merchant_account: &storage::MerchantAccount,
+    ) -> RouterResult<()>
     where
         Self: Sized,
         F: Clone,

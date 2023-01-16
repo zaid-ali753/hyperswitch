@@ -307,9 +307,21 @@ where
 
     let stime_connector = Instant::now();
 
-    let router_data = payment_data
+    let mut router_data = payment_data
         .construct_router_data(state, connector.clone(), merchant_account)
         .await?;
+
+    router_data
+        .update_auth(
+            state,
+            &connector,
+            customer,
+            call_connector_action.clone(),
+            merchant_account,
+        )
+        .await?;
+
+    logger::debug!(router_data=?router_data.response);
 
     let result = match router_data.response.clone() {
         Ok(_) => {
@@ -384,55 +396,55 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
-    let call_connectors_start_time = Instant::now();
-    let mut join_handlers = Vec::with_capacity(connectors.len());
+    // let call_connectors_start_time = Instant::now();
+    // let mut join_handlers = Vec::with_capacity(connectors.len());
+    // let router_data = payment_data
+    //     .construct_router_data(state, connectors.first().unwrap().clone(), merchant_account)
+    //     .await?;
 
-    for connector in connectors.iter() {
-        let router_data = payment_data
-            .construct_router_data(state, connector.clone(), merchant_account)
-            .await?;
+    // for connector in connectors.iter() {
+    //     let res = router_data.decide_flows(
+    //         state,
+    //         connector,
+    //         customer,
+    //         CallConnectorAction::Trigger,
+    //         merchant_account,
+    //     );
 
-        let res = router_data.decide_flows(
-            state,
-            connector,
-            customer,
-            CallConnectorAction::Trigger,
-            merchant_account,
-        );
+    //     join_handlers.push(res);
+    // }
 
-        join_handlers.push(res);
-    }
+    // let result = join_all(join_handlers).await;
 
-    let result = join_all(join_handlers).await;
+    // for (connector_res, connector) in result.into_iter().zip(connectors) {
+    //     let connector_name = connector.connector_name.to_string();
+    //     match connector_res {
+    //         Ok(connector_response) => {
+    //             if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
+    //                 connector_response.response
+    //             {
+    //                 payment_data.sessions_token.push(session_token);
+    //             }
+    //         }
+    //         Err(connector_error) => {
+    //             logger::error!(
+    //                 "sessions_connector_error {} {:?}",
+    //                 connector_name,
+    //                 connector_error
+    //             );
+    //         }
+    //     }
+    // }
 
-    for (connector_res, connector) in result.into_iter().zip(connectors) {
-        let connector_name = connector.connector_name.to_string();
-        match connector_res {
-            Ok(connector_response) => {
-                if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
-                    connector_response.response
-                {
-                    payment_data.sessions_token.push(session_token);
-                }
-            }
-            Err(connector_error) => {
-                logger::error!(
-                    "sessions_connector_error {} {:?}",
-                    connector_name,
-                    connector_error
-                );
-            }
-        }
-    }
-
-    let call_connectors_end_time = Instant::now();
-    let call_connectors_duration =
-        call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
-    tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
+    // let call_connectors_end_time = Instant::now();
+    // let call_connectors_duration =
+    //     call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
+    // tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
 }
 
+#[derive(Clone)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
