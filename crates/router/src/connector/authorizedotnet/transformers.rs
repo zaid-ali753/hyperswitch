@@ -377,8 +377,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             })?
             .clone();
 
-        crate::logger::debug!(authorizedotnet_payment_details=?payment_details);
-
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let transaction_request = RefundTransactionRequest {
@@ -392,8 +390,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),
         };
-
-        crate::logger::debug!(authorizedotnet_transaction=?transaction_request);
 
         Ok(Self {
             create_transaction_request: AuthorizedotnetRefundRequest {
