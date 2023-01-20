@@ -311,7 +311,8 @@ impl<F, T>
             .account_number
             .map(|acc_no| {
                 Encode::<'_, PaymentDetails>::encode_to_value(&construct_refund_payment_details(
-                    acc_no,
+                    // Trim first 4 Characters, XXXX4242 -> 4242
+                    acc_no.trim_matches('X').to_string(),
                 ))
             })
             .transpose()
@@ -376,6 +377,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             })?
             .clone();
 
+        crate::logger::debug!(authorizedotnet_payment_details=?payment_details);
+
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         let transaction_request = RefundTransactionRequest {
@@ -389,6 +392,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             currency_code: item.request.currency.to_string(),
             reference_transaction_id: item.request.connector_transaction_id.clone(),
         };
+
+        crate::logger::debug!(authorizedotnet_transaction=?transaction_request);
 
         Ok(Self {
             create_transaction_request: AuthorizedotnetRefundRequest {
