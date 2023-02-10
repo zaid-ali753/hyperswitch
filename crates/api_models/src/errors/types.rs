@@ -67,6 +67,7 @@ pub struct Extra {
 }
 
 #[derive(Debug, Clone)]
+
 pub enum ApiErrorResponse {
     Unauthorized(ApiError),
     ForbiddenCommonResource(ApiError),
