@@ -32,7 +32,7 @@ where
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        todo!()
+        Ok(vec![])
     }
 }
 
@@ -42,8 +42,7 @@ impl ConnectorCommon for Multisafepay {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        todo!()
-        // Ex: "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -109,7 +108,15 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        todo!()
+        let url = self.base_url(_connectors);
+        let api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        let ord_id = _req.payment_id.clone();
+        Ok(format!(
+            "{}v1/json/orders/{}?api_key={}",
+            url,
+            ord_id,
+            api_key
+        ))
     }
 
     fn build_request(
@@ -260,7 +267,13 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let url = self.base_url(_connectors);
+        let mut api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        Ok(format!(
+            "{}v1/json/orders?api_key={}",
+            url,
+            api_key
+        ))
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -274,6 +287,16 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let requeue = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsAuthorizeType::get_url(
+                self, req, connectors,
+            )?)
+            .headers(types::PaymentsAuthorizeType::get_headers(
+                self, req, connectors,
+            )?)
+            .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+            .build();
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -293,7 +316,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: multisafepay::MultisafepayPaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: multisafepay::MultisafepayPaymentsResponse = res.response.parse_struct("MultisafepayPaymentsResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(multisafepaypayments_create_response=?response);
         types::ResponseRouterData {
             response,
@@ -328,7 +351,15 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let url = self.base_url(_connectors);
+        let api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        let ord_id = _req.payment_id.clone();
+        Ok(format!(
+            "{}v1/json/orders/{}/refunds?api_key={}",
+            url,
+            ord_id,
+            api_key
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -378,7 +409,15 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        todo!()
+        let url = self.base_url(_connectors);
+        let api_key = self.get_auth_header(&_req.connector_auth_type)?[0].1.clone();
+        let ord_id = _req.payment_id.clone();
+        Ok(format!(
+            "{}v1/json/orders/{}/refunds?api_key={}",
+            url,
+            ord_id,
+            api_key
+        ))
     }
 
     fn build_request(
